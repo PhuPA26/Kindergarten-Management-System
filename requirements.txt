@@ -1,0 +1,3 @@
+# CSDL SQLite dùng module sqlite3 có sẵn trong Python - không cần cài thêm thư viện nào để chạy chương trình.
+# Chỉ cần để chạy bộ kiểm thử (T33):
+pytest>=7.0
