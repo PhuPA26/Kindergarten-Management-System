@@ -1,4 +1,4 @@
-"""Kiểm thử lưu trữ SQLite - thiết kế CSDL v2 (40 bảng, file data/ql_mam_non.db).
+"""Kiểm thử lưu trữ SQLite - thiết kế CSDL v2 (42 bảng, file data/ql_mam_non.db).
 
 Mỗi test dùng một file CSDL riêng trong thư mục tạm, không đụng dữ liệu thật.
 """
@@ -56,7 +56,7 @@ def open_again(tmp_path) -> KindergartenSystem:
 def test_schema_follows_naming_convention(store):
     tables = {name for (name,) in store._query("SELECT name FROM sqlite_master WHERE type = 'table' "
                                                "AND name NOT LIKE 'sqlite_%'")}
-    assert tables == set(TABLES) and len(tables) == 40
+    assert tables == set(TABLES) and len(tables) == 42
     assert all(t.startswith(("MN_HT_", "MN_DM_", "MN_NV_")) and t == t.upper() for t in tables)
     fks = sum(len(store._query(f'PRAGMA foreign_key_list("{t}")')) for t in tables)
     assert fks >= 30                                          # quan hệ được ràng buộc bằng khóa ngoại thật
@@ -116,6 +116,17 @@ def test_incremental_save_and_delete(store, tmp_path):
     system.save()
     assert count(store, "MN_NV_DI_UNG", '"MA_DI_UNG" = ?', (allergy.id,)) == 0
     assert store._query('SELECT "TEN_O_NHA" FROM "MN_DM_TRE" WHERE "MA_TRE" = ?', (khang.id,))[0][0] == "Bin Bin"
+
+
+def test_pending_changes_counts_unsaved_edits(store, tmp_path):
+    system = seeded(store, tmp_path)
+    assert store.pending_changes(system) == 0                     # vừa lưu xong -> không còn gì chưa lưu
+    khang = system.children.find_one(full_name="Nguyễn Minh Khang")
+    system.children.update(khang.id, nickname="Tí")
+    assert store.pending_changes(system) == 1                     # sửa 1 hồ sơ trong bộ nhớ, chưa ghi
+    system.load()                                                 # "Không lưu" khi đăng xuất -> nạp lại từ CSDL
+    assert store.pending_changes(system) == 0
+    assert system.children.get(khang.id).nickname != "Tí"
 
 
 def test_foreign_keys_enforced(store, tmp_path):

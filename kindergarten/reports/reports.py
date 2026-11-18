@@ -206,6 +206,52 @@ class AttendanceReport(Report):
                           subtitle=f"{scope} - tháng {month_label(self.month, self.year)}")
 
 
+class SubjectTeachingReport(Report):
+    """Báo cáo chuyên môn bộ môn tháng (của GV bộ môn): số tiết theo TKB, số tiết đã ghi sổ, trẻ được nhận xét."""
+
+    title = "Báo cáo chuyên môn bộ môn"
+    file_prefix = "bao_cao_bo_mon"
+
+    def __init__(self, system: "KindergartenSystem", month: int, year: int, class_id: str | None = None,
+                 class_ids: set[str] | None = None) -> None:
+        super().__init__(system)
+        self.month, self.year = parse_month((month, year))
+        self.class_id = class_id
+        self.class_ids = class_ids
+
+    def generate(self) -> ReportData:
+        lessons = self.system.lessons
+        items = [r for r in lessons.month_summary(self.month, self.year, class_id=self.class_id)
+                 if self.class_ids is None or r["class_id"] in self.class_ids]
+        rows = [[r["teacher"], r["subject"], r["class_name"], r["planned"], r["logged"],
+                 (r["logged"] / r["planned"] * 100) if r["planned"] else None, r["commented"], r["need_help"]]
+                for r in items]
+        planned = sum(r["planned"] for r in items)
+        logged = sum(r["logged"] for r in items)
+        logs = [log for log in lessons.logs(month=self.month, year=self.year)
+                if (self.class_id is None or log.class_id == self.class_id)
+                and (self.class_ids is None or log.class_id in self.class_ids)]
+        help_names = sorted({self.system.children.get(cid).full_name for log in logs
+                             for cid, note in log.child_notes.items()
+                             if note["level"] == "Cần hỗ trợ" and self.system.children.exists(cid)})
+        star_names = sorted({self.system.children.get(cid).full_name for log in logs
+                             for cid, note in log.child_notes.items()
+                             if note["level"] == "Nổi bật" and self.system.children.exists(cid)})
+        summary = [("Kỳ báo cáo", f"Tháng {month_label(self.month, self.year)}"),
+                   ("Số tiết theo thời khóa biểu (đến hôm nay)", str(planned)),
+                   ("Số tiết đã ghi sổ", str(logged)),
+                   ("Tỷ lệ ghi sổ", format_percent(logged / planned * 100 if planned else None)),
+                   ("Trẻ nổi bật", ", ".join(star_names) or "Không có"),
+                   ("Trẻ cần hỗ trợ thêm", ", ".join(help_names) or "Không có")]
+        scope = (f"Lớp {self.system.classes.class_name(self.class_id)}" if self.class_id else
+                 "Các lớp: " + ", ".join(self.system.classes.class_name(c) for c in sorted(self.class_ids))
+                 if self.class_ids is not None else "Toàn trường")
+        return ReportData(self.title, ["Giáo viên", "Môn", "Lớp", "Tiết theo TKB", "Đã ghi sổ", "Tỷ lệ",
+                                       "Trẻ được nhận xét", "Cần hỗ trợ"], rows,
+                          formats=[None] * 5 + ["percent", None, None], summary=summary,
+                          subtitle=f"{scope} - tháng {month_label(self.month, self.year)}")
+
+
 class RevenueReport(Report):
     """Báo cáo doanh thu học phí tháng theo lớp."""
 
@@ -514,6 +560,10 @@ class SchoolSummaryReport(Report):
                         ("Tổng công nợ hiện tại", f"{format_vnd(sum(x['debt'] for x in debtors))} "
                                                   f"({len(debtors)} hộ)"),
                         ("Quỹ lương tháng", format_vnd(s.employees.total_payroll(m, y)))]
+            subject = s.lessons.month_summary(m, y)
+            if subject:
+                summary.append(("Sổ tiết dạy bộ môn đã ghi", f"{sum(r['logged'] for r in subject)}/"
+                                                             f"{sum(r['planned'] for r in subject)} tiết"))
         approved = sum(1 for r in sources if r.status.name == "APPROVED")
         summary.append(("Báo cáo bộ phận đưa vào tổng hợp", f"{len(sources)} (đã duyệt {approved}, "
                                                             f"chờ xem {sum(1 for r in sources if r.status.name == 'SENT')})"))
@@ -560,6 +610,8 @@ REPORT_TYPES: list[dict[str, Any]] = [
      "scope": True, "permission": Permission.DAILY_LOG},
     {"key": "attendance", "label": "Báo cáo chuyên cần tháng", "cls": AttendanceReport, "period": "month",
      "scope": True, "permission": Permission.TAKE_ATTENDANCE},
+    {"key": "subject", "label": "Báo cáo chuyên môn bộ môn tháng", "cls": SubjectTeachingReport,
+     "period": "month", "scope": True, "permission": Permission.TEACH_SUBJECT},
     {"key": "pickup", "label": "Báo cáo đón - trả trẻ trong ngày", "cls": PickupDayReport, "period": "date",
      "scope": True, "permission": Permission.CHECK_IN_OUT},
     {"key": "health", "label": "Báo cáo y tế - sức khỏe trẻ", "cls": HealthReport, "period": "none",

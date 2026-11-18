@@ -69,7 +69,9 @@ COLORS = {
     "select": "#dbe9ff", "stripe": "#f8fafe",
     "warn": "#d92d20", "ok": "#079455", "orange": "#f08c00", "pink": "#e2468f", "purple": "#7a5af8",
     "cyan": "#0aa2c0",
+    # menu trái nền navy: mục đang chọn là viên xanh dương, thẻ phân hệ / tài khoản xanh navy sáng hơn
     "sidebar": "#10285a", "sidebar_hover": "#1a3a78", "sidebar_text": "#c9d5ee", "sidebar_group": "#7489b6",
+    "sidebar_icon": "#9fb3da", "sidebar_card": "#183670", "sidebar_button": "#24498f",
 }
 ACCENTS = ["primary", "ok", "orange", "purple", "pink", "cyan"]
 
@@ -100,6 +102,7 @@ class DataTable(ttk.Frame):
         super().__init__(master)
         # checkable: thêm cột ô tích đầu bảng - bấm vào ô (hoặc phím Space) để chọn nhiều dòng, không cần Ctrl/Shift
         self.checkable = checkable
+        self.row_click_check: Callable[[str], bool] | None = None   # bấm vào dòng cũng tích (nếu hàm trả True)
         self._checked: set[str] = set()
         self._check_listeners: list[Callable[[], Any]] = []
         self.tree = ttk.Treeview(self, show="headings", height=height, selectmode=selectmode)
@@ -127,11 +130,14 @@ class DataTable(ttk.Frame):
             visible = list(self.tree.get_children())
             self.set_checked([] if all(i in self._checked for i in visible) else visible)
             return "break"
+        row = self.tree.identify_row(event.y)
         if self.tree.identify_column(event.x) == "#1":
-            row = self.tree.identify_row(event.y)
             if row:
                 self.toggle([row])
                 return "break"
+        elif row and self.tree.identify_region(event.x, event.y) == "cell" and self.row_click_check is not None \
+                and self.row_click_check(row):
+            self.toggle([row])   # bấm vào bất kỳ ô nào của dòng = tích / bỏ tích; dòng vẫn được chọn như thường
         return None
 
     def _paint(self, iid: str) -> None:

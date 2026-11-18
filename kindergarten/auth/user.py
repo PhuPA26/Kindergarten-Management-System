@@ -91,18 +91,16 @@ class Permission(Enum):
     SUBMIT_REPORTS = "Lập báo cáo, ghi chú và gửi Ban giám hiệu"
     REVIEW_REPORTS = "Nhận, xem, duyệt / yêu cầu bổ sung báo cáo"
     PARENT_PORTAL = "Theo dõi con, nhắn giáo viên, dặn thuốc, xin nghỉ, đăng ký dịch vụ"
+    TEACH_SUBJECT = "Ghi sổ tiết dạy bộ môn, nhận xét trẻ theo môn học"
 
 
 # Mỗi phân hệ CHỈ giữ chức năng đúng nhiệm vụ của mình (không còn "thấy hết nhưng bị khóa nút").
 ROLE_PERMISSIONS: dict[Role, frozenset[Permission]] = {
     # Ban giám hiệu: quyền cao nhất - mọi chức năng nội bộ, nhận và duyệt báo cáo của các bộ phận
     Role.ADMIN: frozenset(p for p in Permission if p not in (Permission.PARENT_PORTAL, Permission.SUBMIT_REPORTS)),
-    # Giáo viên: chăm sóc - giáo dục trẻ LỚP MÌNH trong ngày, trao đổi với phụ huynh, báo cáo lớp
-    Role.TEACHER: frozenset({
-        Permission.VIEW_OPERATIONS, Permission.CHECK_IN_OUT, Permission.TAKE_ATTENDANCE, Permission.DAILY_LOG,
-        Permission.PARENT_CONTACT, Permission.VIEW_CHILDREN, Permission.MANAGE_HEALTH, Permission.VIEW_CLASSES,
-        Permission.VIEW_MENU, Permission.SUBMIT_REPORTS,
-    }),
+    # Giáo viên (phần chung): xem lớp mình phụ trách, thời khóa biểu, hồ sơ trẻ, gửi báo cáo.
+    # Phần còn lại tùy loại giáo viên - xem TEACHER_DUTIES.
+    Role.TEACHER: frozenset({Permission.VIEW_CHILDREN, Permission.VIEW_CLASSES, Permission.SUBMIT_REPORTS}),
     # Kế toán: chỉ tiền - học phí, thu chi, công nợ, dịch vụ, bảng lương, báo cáo tài chính
     Role.ACCOUNTANT: frozenset({
         Permission.MANAGE_FINANCE, Permission.MANAGE_SERVICES, Permission.VIEW_FINANCE_REPORTS,
@@ -119,6 +117,17 @@ STAFF_DUTIES: dict[str, tuple[str, frozenset[Permission]]] = {
     "bao_ve": ("Bảo vệ - đón trả trẻ ở cổng", frozenset({Permission.CHECK_IN_OUT})),
     "y_te": ("Y tế - sức khỏe trẻ", frozenset({Permission.MANAGE_HEALTH})),
     "": ("Nhân viên", frozenset()),
+}
+
+# Hai loại giáo viên -> (tên hiển thị, quyền thêm). Xác định theo hồ sơ: có lớp chủ nhiệm = GV chủ nhiệm.
+TEACHER_DUTIES: dict[str, tuple[str, frozenset[Permission]]] = {
+    # GV chủ nhiệm: chăm sóc - nuôi dưỡng trẻ LỚP MÌNH cả ngày, trao đổi với phụ huynh, báo cáo lớp
+    "chu_nhiem": ("Giáo viên chủ nhiệm", frozenset({
+        Permission.VIEW_OPERATIONS, Permission.CHECK_IN_OUT, Permission.TAKE_ATTENDANCE, Permission.DAILY_LOG,
+        Permission.PARENT_CONTACT, Permission.MANAGE_HEALTH, Permission.VIEW_MENU})),
+    # GV bộ môn (Âm nhạc, Tiếng Anh...): dạy theo tiết ở nhiều lớp - ghi sổ tiết dạy, nhận xét trẻ theo môn,
+    # báo cáo chuyên môn. KHÔNG đón trả, điểm danh, ăn ngủ, sức khỏe, dặn thuốc (việc của GV chủ nhiệm).
+    "bo_mon": ("Giáo viên bộ môn", frozenset({Permission.TEACH_SUBJECT})),
 }
 
 

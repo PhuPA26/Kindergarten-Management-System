@@ -37,19 +37,19 @@ class FinanceTab(BaseTab):
         entry.pack(side="left", padx=(4, 12))
         entry.bind("<Return>", lambda _e: self.refresh())
         ttk.Label(bar, text="Trạng thái:").pack(side="left")
-        self.status_box = ttk.Combobox(bar, state="readonly", width=22,
+        self.m_cbo_status = ttk.Combobox(bar, state="readonly", width=22,
                                        values=["Tất cả"] + [s.value for s in InvoiceStatus] + ["Quá hạn"])
-        self.status_box.set("Tất cả")
-        self.status_box.pack(side="left", padx=(4, 12))
-        self.status_box.bind("<<ComboboxSelected>>", lambda _e: self.refresh())
+        self.m_cbo_status.set("Tất cả")
+        self.m_cbo_status.pack(side="left", padx=(4, 12))
+        self.m_cbo_status.bind("<<ComboboxSelected>>", lambda _e: self.refresh())
         self.button(bar, "Xem", self.refresh)
-        self.table = DataTable(self, [("Mã HĐ", 65), ("Trẻ", 170), ("Lớp", 120), ("Kỳ", 70, "center"),
+        self.m_fg_list = DataTable(self, [("Mã HĐ", 65), ("Trẻ", 170), ("Lớp", 120), ("Kỳ", 70, "center"),
                                       ("Phải nộp", 100, "e"), ("Đã nộp", 100, "e"), ("Còn nợ", 100, "e"),
                                       ("Trạng thái", 200), ("Hạn nộp", 85)])
-        self.table.pack(fill="both", expand=True)
-        self.table.on_double_click(self.detail)
-        self.summary = ttk.Label(self, style="Muted.TLabel")
-        self.summary.pack(anchor="w", pady=(4, 0))
+        self.m_fg_list.pack(fill="both", expand=True)
+        self.m_fg_list.on_double_click(self.detail)
+        self.m_lbl_summary = ttk.Label(self, style="Muted.TLabel")
+        self.m_lbl_summary.pack(anchor="w", pady=(4, 0))
         actions = self.bar(pady=(6, 0))
         self.button(actions, "Thu tiền", self.pay, style="Accent.TButton")
         self.button(actions, "Chi tiết", self.detail)
@@ -75,7 +75,7 @@ class FinanceTab(BaseTab):
         if period is None:
             return
         invoices = self.system.invoices.invoices_of_month(*period)
-        status = self.status_box.get()
+        status = self.m_cbo_status.get()
         if status == "Quá hạn":
             invoices = [i for i in invoices if i.is_overdue()]
         elif status != "Tất cả":
@@ -86,15 +86,15 @@ class FinanceTab(BaseTab):
                          format_vnd(i.paid_amount), format_vnd(i.balance), i.status_text(), format_date(i.due_date)])
             tags.append("warn" if i.is_overdue() else "ok" if i.status is InvoiceStatus.PAID
                         else "muted" if i.provisional else None)
-        self.table.set_rows(rows, [i.id for i in invoices], tags)
+        self.m_fg_list.set_rows(rows, [i.id for i in invoices], tags)
         provisional = sum(1 for i in invoices if i.provisional)
-        self.summary.configure(text=f"{len(invoices)} hóa đơn | Phải nộp {format_vnd(sum(i.total for i in invoices))}"
+        self.m_lbl_summary.configure(text=f"{len(invoices)} hóa đơn | Phải nộp {format_vnd(sum(i.total for i in invoices))}"
                                     f" | Đã nộp {format_vnd(sum(i.paid_amount for i in invoices))}"
                                     f" | Còn nợ {format_vnd(sum(i.balance for i in invoices))}"
                                     + (f" | {provisional} hóa đơn tạm tính" if provisional else ""))
 
     def _selected_invoice(self) -> Invoice | None:
-        return self.selected(self.table, self.system.invoices.get, "một hóa đơn")
+        return self.selected(self.m_fg_list, self.system.invoices.get, "một hóa đơn")
 
     def _unfinished_note(self, period: tuple[int, int]) -> str:
         if month_bounds(*period)[1] >= date.today():
@@ -303,10 +303,10 @@ class MealsDialog(tk.Toplevel):
         self.title("Danh mục món ăn")
         self.geometry(f"{px(820)}x{px(440)}")
         self.transient(tab.winfo_toplevel())
-        self.table = DataTable(self, [("Mã", 60), ("Tên món", 200), ("Kcal", 60, "e"), ("Thành phần", 360),
+        self.m_fg_list = DataTable(self, [("Mã", 60), ("Tên món", 200), ("Kcal", 60, "e"), ("Thành phần", 360),
                                       ("Trạng thái", 80)])
-        self.table.pack(fill="both", expand=True, padx=8, pady=8)
-        self.table.on_double_click(self.edit)
+        self.m_fg_list.pack(fill="both", expand=True, padx=8, pady=8)
+        self.m_fg_list.on_double_click(self.edit)
         bar = ttk.Frame(self, padding=(8, 0, 8, 8))
         bar.pack(fill="x")
         manage = tab.can(P.MANAGE_MENU)
@@ -321,7 +321,7 @@ class MealsDialog(tk.Toplevel):
 
     def reload(self) -> None:
         meals = self.tab.system.menus.meals_sorted(include_hidden=True)
-        self.table.set_rows([[m.id, m.name, m.calories, m.ingredients_text, "Đang dùng" if m.active else "Đã ẩn"]
+        self.m_fg_list.set_rows([[m.id, m.name, m.calories, m.ingredients_text, "Đang dùng" if m.active else "Đã ẩn"]
                              for m in meals], [m.id for m in meals], [None if m.active else "muted" for m in meals])
 
     def _fields(self, meal=None) -> list[Field]:
@@ -331,7 +331,7 @@ class MealsDialog(tk.Toplevel):
                 Field("description", "Mô tả", default=meal.description if meal else None, required=False)]
 
     def _selected(self):
-        return self.tab.selected(self.table, self.tab.system.menus.meals.get, "một món")
+        return self.tab.selected(self.m_fg_list, self.tab.system.menus.meals.get, "một món")
 
     def add(self) -> None:
         self.tab.form("Thêm món ăn", self._fields(), lambda v: self.tab.system.menus.add_meal(**v))
@@ -386,19 +386,19 @@ class MenuTab(BaseTab):
         self.button(bar, "◀ Tuần trước", lambda: self.shift(-7))
         self.button(bar, "Tuần này", lambda: self.shift(None))
         self.button(bar, "Tuần sau ▶", lambda: self.shift(7))
-        self.week_label = ttk.Label(bar, style="Section.TLabel")
-        self.week_label.pack(side="left", padx=12)
-        self.table = DataTable(self, [("Thứ", 55), ("Ngày", 90), ("Bữa sáng", 170), ("Bữa trưa", 420),
+        self.m_lbl_week = ttk.Label(bar, style="Section.TLabel")
+        self.m_lbl_week.pack(side="left", padx=12)
+        self.m_fg_list = DataTable(self, [("Thứ", 55), ("Ngày", 90), ("Bữa sáng", 170), ("Bữa trưa", 420),
                                       ("Bữa xế", 150), ("Năng lượng", 90, "e")], height=6)
-        self.table.pack(fill="x")
-        self.table.on_double_click(self.plan_day)
+        self.m_fg_list.pack(fill="x")
+        self.m_fg_list.on_double_click(self.plan_day)
         actions = self.bar(pady=(8, 4))
         self.button(actions, "Lập / sửa thực đơn ngày đang chọn", self.plan_day, P.MANAGE_MENU, style="Accent.TButton")
         self.button(actions, "Sao chép thực đơn tuần trước sang tuần đang xem", self.copy_previous, P.MANAGE_MENU)
         self.button(actions, "Danh mục món ăn", self.open_meals)
-        self.warnings = ReportView(self, height=10)
-        self.warnings.configure(highlightthickness=1, highlightbackground=COLORS["border"])
-        self.warnings.pack(fill="both", expand=True)
+        self.m_txt_warnings = ReportView(self, height=10)
+        self.m_txt_warnings.configure(highlightthickness=1, highlightbackground=COLORS["border"])
+        self.m_txt_warnings.pack(fill="both", expand=True)
 
     def shift(self, days: int | None) -> None:
         today = date.today()
@@ -410,20 +410,20 @@ class MenuTab(BaseTab):
         menus = self.system.menus
         week = menus.week_menus(self.week_start)
         days = [d for d, _ in week]
-        self.week_label.configure(text=f"Tuần {format_date(days[0])} - {format_date(days[-1])}")
+        self.m_lbl_week.configure(text=f"Tuần {format_date(days[0])} - {format_date(days[-1])}")
         _headers, rows = menus.week_table(self.week_start)
         cal = self.system.calendar
-        self.table.set_rows(rows, [d.isoformat() for d in days],
+        self.m_fg_list.set_rows(rows, [d.isoformat() for d in days],
                             ["muted" if not cal.is_school_day(d) or menu is None else None for d, menu in week])
         # L09: giáo viên chỉ thấy cảnh báo cho trẻ lớp mình
         warnings = menus.week_allergy_warnings(self.week_start, class_ids=self.scope_class_ids())
         text = "\n".join(str(w) for w in warnings) or "Không có món nào chứa chất gây dị ứng cho trẻ."
-        self.warnings.render_plain(text, title="Cảnh báo dị ứng trong tuần", top="h2")
+        self.m_txt_warnings.render_plain(text, title="Cảnh báo dị ứng trong tuần", top="h2")
 
     def plan_day(self) -> None:
         if not self.can(P.MANAGE_MENU):
             return
-        day_id = self.table.selected_id()
+        day_id = self.m_fg_list.selected_id()
         if not day_id:
             messagebox.showwarning("Chưa chọn", "Hãy chọn một ngày trong bảng.", parent=self)
             return
@@ -471,16 +471,16 @@ class SystemTab(BaseTab):
 
     def build(self) -> None:
         ttk.Label(self, text="Tài khoản người dùng", style="Section.TLabel").pack(anchor="w")
-        self.table = DataTable(self, [("Mã", 60), ("Tên đăng nhập", 120), ("Họ tên", 220), ("Vai trò", 110),
+        self.m_fg_list = DataTable(self, [("Mã", 60), ("Tên đăng nhập", 120), ("Họ tên", 220), ("Vai trò", 110),
                                       ("Mã NS", 70), ("Trạng thái", 90), ("Đăng nhập gần nhất", 150)])
-        self.table.pack(fill="both", expand=True)
-        self.table.on_double_click(self.edit_user)
+        self.m_fg_list.pack(fill="both", expand=True)
+        self.m_fg_list.on_double_click(self.edit_user)
         self.master_bar(self.create_user, self.edit_user, self.delete, extras=[
             ("Khóa / mở khóa", self.toggle), ("Đặt lại mật khẩu", self.reset_password),
             ("Nhật ký thao tác", self.audit_log)])
         approve = self.bar(pady=(6, 0))
-        self.pending_label = ttk.Label(approve, style="Section.TLabel")
-        self.pending_label.pack(side="left", padx=(0, 8))
+        self.m_lbl_pending = ttk.Label(approve, style="Section.TLabel")
+        self.m_lbl_pending.pack(side="left", padx=(0, 8))
         self.button(approve, "Duyệt tài khoản đăng ký", self.approve, style="Accent.TButton")
         self.button(approve, "Từ chối", self.reject)
         data = ttk.LabelFrame(self, text="Dữ liệu", padding=8)
@@ -491,30 +491,30 @@ class SystemTab(BaseTab):
         self.button(data, "Mở thư mục sao lưu", lambda: open_folder(self.system.store.data_dir.resolve()))
         if self.app.seed_func is not None:
             self.button(data, "Nạp lại dữ liệu mẫu", self.reseed, P.MANAGE_DATA)
-        self.meta = ttk.Label(data, style="Muted.TLabel")
-        self.meta.pack(side="right")
+        self.m_lbl_meta = ttk.Label(data, style="Muted.TLabel")
+        self.m_lbl_meta.pack(side="right")
         view = ttk.LabelFrame(self, text="Hiển thị", padding=8)
         view.pack(fill="x", pady=(8, 0))
         ttk.Label(view, text="Cỡ chữ:").pack(side="left")
-        self.font_size = ttk.Combobox(view, state="readonly", width=5, values=["9", "10", "11", "12", "14"])
-        self.font_size.set(str(FONTS["size"]))
-        self.font_size.pack(side="left", padx=4)
-        self.font_size.bind("<<ComboboxSelected>>", lambda _e: self.app.set_font_size(int(self.font_size.get())))
+        self.m_cbo_font_size = ttk.Combobox(view, state="readonly", width=5, values=["9", "10", "11", "12", "14"])
+        self.m_cbo_font_size.set(str(FONTS["size"]))
+        self.m_cbo_font_size.pack(side="left", padx=4)
+        self.m_cbo_font_size.bind("<<ComboboxSelected>>", lambda _e: self.app.set_font_size(int(self.m_cbo_font_size.get())))
         ttk.Label(view, text="(phím tắt Ctrl+1..9 để chuyển tab)", style="Muted.TLabel").pack(side="left", padx=12)
 
     def refresh(self) -> None:
         users = sorted(self.system.auth, key=lambda u: (not u.pending, u.role.value, u.username))
-        self.table.set_rows([[u.id, u.username, u.full_name, u.role.label, u.employee_id or u.parent_id or "-",
+        self.m_fg_list.set_rows([[u.id, u.username, u.full_name, u.role.label, u.employee_id or u.parent_id or "-",
                               u.status_text, u.last_login.replace("T", " ") if u.last_login else "-"] for u in users],
                             [u.id for u in users],
                             ["warn" if u.pending else None if u.active else "muted" for u in users])
         pending = len(self.system.auth.pending_users())
-        self.pending_label.configure(text=f"{pending} tài khoản chờ duyệt" if pending else "Không có tài khoản chờ duyệt")
+        self.m_lbl_pending.configure(text=f"{pending} tài khoản chờ duyệt" if pending else "Không có tài khoản chờ duyệt")
         meta = self.system.store.read_meta()
-        self.meta.configure(text=f"Lần lưu gần nhất: {meta.get('saved_at', '-').replace('T', ' ')}")
+        self.m_lbl_meta.configure(text=f"Lần lưu gần nhất: {meta.get('saved_at', '-').replace('T', ' ')}")
 
     def _selected_user(self) -> User | None:
-        return self.selected(self.table, self.system.auth.get, "một tài khoản")
+        return self.selected(self.m_fg_list, self.system.auth.get, "một tài khoản")
 
     @staticmethod
     def _employee_options(employees) -> list[tuple[str, str]]:

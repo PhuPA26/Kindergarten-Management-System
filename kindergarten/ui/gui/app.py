@@ -21,6 +21,7 @@ from .tabs_parent import (ParentDiaryTab, ParentFeesTab, ParentHealthTab, Parent
                           ParentTodayTab)
 from .tabs_people import ChildrenTab, DashboardTab, HealthTab, ParentsTab
 from .tabs_school import AttendanceTab, ClassesTab, EmployeesTab, TimetableTab
+from .tabs_teaching import LessonTab
 from .report_view import close_drawer
 from .theme import HeroPanel, Sidebar, apply_theme, avatar, demo_values, sidebar_link
 from .widgets import COLORS, FONTS, Field, FormDialog, configure_fonts, detect_scale, px, ui_font
@@ -29,13 +30,14 @@ from .widgets import COLORS, FONTS, Field, FormDialog, configure_fonts, detect_s
 TAB_ICONS = {
     "ParentTodayTab": "☀", "ParentDiaryTab": "✎", "ParentMessagesTab": "✉", "ParentMenuTab": "♨",
     "ParentFeesTab": "₫", "ParentHealthTab": "♥",
-    "OperationsTab": "⚡", "CheckInOutTab": "⇄", "AttendanceTab": "✔", "DailyLogTab": "☾",
+    "OperationsTab": "⚡", "LessonTab": "♪", "CheckInOutTab": "⇄", "AttendanceTab": "✔", "DailyLogTab": "☾",
     "ParentContactTab": "✆",
     "ChildrenTab": "☺", "ParentsTab": "☻", "HealthTab": "✚", "ClassesTab": "⌂", "TimetableTab": "◷",
     "MenuTab": "♨", "FinanceTab": "₫", "ServicesTab": "★", "EmployeesTab": "✦",
     "ReportSubmitTab": "➤", "ReportInboxTab": "✉", "SchoolReportTab": "▤",
     "DashboardTab": "◉", "CalendarTab": "☷", "SystemTab": "⚙",
 }
+RESOURCE_DIR = Path(__file__).resolve().parents[3] / "Resource"   # biểu tượng, tài nguyên giao diện
 WEEKDAYS = ["Thứ Hai", "Thứ Ba", "Thứ Tư", "Thứ Năm", "Thứ Sáu", "Thứ Bảy", "Chủ nhật"]
 
 # Sơ đồ phân cấp chức năng (Hướng dẫn XD HTTTQL): 5 chức năng đỉnh - 3 chức năng chung (F1.1 Quản trị hệ thống,
@@ -44,7 +46,7 @@ WEEKDAYS = ["Thứ Hai", "Thứ Ba", "Thứ Tư", "Thứ Năm", "Thứ Sáu", "T
 NAVIGATION: list[tuple[str, list[type[BaseTab]]]] = [
     ("F1.1 Quản trị hệ thống", [SystemTab]),
     ("F1.2 Quản lý danh mục", [ChildrenTab, ParentsTab, EmployeesTab, ClassesTab, ServicesTab, CalendarTab]),
-    ("F1.3 Nghiệp vụ chăm sóc - giáo dục", [OperationsTab, CheckInOutTab, AttendanceTab, DailyLogTab,
+    ("F1.3 Nghiệp vụ chăm sóc - giáo dục", [OperationsTab, LessonTab, CheckInOutTab, AttendanceTab, DailyLogTab,
                                            ParentContactTab, HealthTab, TimetableTab, MenuTab,
                                            ParentTodayTab, ParentDiaryTab, ParentMessagesTab, ParentMenuTab,
                                            ParentHealthTab]),
@@ -59,7 +61,7 @@ _FORM_SLUGS = {
     "SystemTab": "ht_he_thong",
     "ChildrenTab": "dm_tre", "ParentsTab": "dm_phu_huynh", "EmployeesTab": "dm_nhan_su", "ClassesTab": "dm_lop_hoc",
     "ServicesTab": "dm_dich_vu", "CalendarTab": "dm_lich_nam_hoc",
-    "OperationsTab": "nv_van_hanh_hom_nay", "CheckInOutTab": "nv_don_tra_tre", "AttendanceTab": "nv_diem_danh",
+    "OperationsTab": "nv_van_hanh_hom_nay", "LessonTab": "nv_so_tiet_day_bo_mon", "CheckInOutTab": "nv_don_tra_tre", "AttendanceTab": "nv_diem_danh",
     "DailyLogTab": "nv_an_ngu_sinh_hoat", "ParentContactTab": "nv_trao_doi_phu_huynh", "HealthTab": "nv_suc_khoe",
     "TimetableTab": "nv_thoi_khoa_bieu", "MenuTab": "nv_thuc_don", "ParentTodayTab": "nv_hom_nay_cua_con",
     "ParentDiaryTab": "nv_nhat_ky_cua_con", "ParentMessagesTab": "nv_trao_doi_voi_co",
@@ -70,8 +72,19 @@ _FORM_SLUGS = {
 }
 FORM_CODES: dict[str, str] = {cls.__name__: f"frm{i:03d}_{_FORM_SLUGS[cls.__name__]}"
                               for i, cls in enumerate(TAB_CLASSES, 1)}
+# Menu trái: gom form theo CÔNG VIỆC với tên nhóm ngắn (dễ tìm hơn tên chức năng F1.x dài).
+# Mỗi phân hệ chỉ thấy nhóm / mục mình có quyền; nhóm rỗng tự ẩn.
+SIDEBAR_GROUPS: list[tuple[str, list[str]]] = [
+    ("Trang chính", ["DashboardTab", "OperationsTab", "LessonTab", "ParentTodayTab"]),
+    ("Công việc hằng ngày", ["CheckInOutTab", "AttendanceTab", "DailyLogTab", "ParentContactTab", "HealthTab",
+                             "MenuTab", "ParentDiaryTab", "ParentMessagesTab", "ParentMenuTab", "ParentHealthTab"]),
+    ("Hồ sơ & lớp học", ["ChildrenTab", "ParentsTab", "ClassesTab", "TimetableTab", "EmployeesTab"]),
+    ("Học phí", ["FinanceTab", "ServicesTab", "ParentFeesTab"]),
+    ("Báo cáo", ["ReportSubmitTab", "ReportInboxTab", "SchoolReportTab"]),
+    ("Hệ thống", ["CalendarTab", "SystemTab"]),
+]
 # Màn hình chính của từng phân hệ (nút Thoát của form quay về đây)
-HOME_TABS = ["DashboardTab", "OperationsTab", "ParentTodayTab", "FinanceTab"]
+HOME_TABS = ["DashboardTab", "OperationsTab", "LessonTab", "ParentTodayTab", "FinanceTab"]
 
 
 class LoginFrame(ttk.Frame):
@@ -104,17 +117,17 @@ class LoginFrame(ttk.Frame):
         user_entry = ttk.Entry(form, textvariable=self.username, style="Login.TEntry", font=ui_font(1))
         user_entry.grid(row=4, column=0, sticky="ew", pady=(px(4), px(14)))
         ttk.Label(form, text="Mật khẩu", style="FieldBold.TLabel").grid(row=5, column=0, sticky="w")
-        self.password_entry = ttk.Entry(form, textvariable=self.password, show="•", style="Login.TEntry",
+        self.m_txt_password = ttk.Entry(form, textvariable=self.password, show="•", style="Login.TEntry",
                                         font=ui_font(1))
-        self.password_entry.grid(row=6, column=0, sticky="ew", pady=(px(4), px(6)))
+        self.m_txt_password.grid(row=6, column=0, sticky="ew", pady=(px(4), px(6)))
         self.show_password = tk.BooleanVar(value=False)
         ttk.Checkbutton(form, text="Hiện mật khẩu", variable=self.show_password,
-                        command=lambda: self.password_entry.configure(show="" if self.show_password.get() else "•")
+                        command=lambda: self.m_txt_password.configure(show="" if self.show_password.get() else "•")
                         ).grid(row=7, column=0, sticky="w")
-        for entry in (user_entry, self.password_entry):
+        for entry in (user_entry, self.m_txt_password):
             entry.bind("<Return>", lambda _e: self.login())
-        self.message = ttk.Label(form, style="CardWarn.TLabel", wraplength=px(380))
-        self.message.grid(row=8, column=0, sticky="w", pady=(px(6), 0))
+        self.m_lbl_message = ttk.Label(form, style="CardWarn.TLabel", wraplength=px(380))
+        self.m_lbl_message.grid(row=8, column=0, sticky="w", pady=(px(6), 0))
         ttk.Button(form, text="Đăng nhập  →", style="Big.Accent.TButton", command=self.login, cursor="hand2").grid(
             row=9, column=0, sticky="ew", pady=(px(8), 0))
 
@@ -135,29 +148,29 @@ class LoginFrame(ttk.Frame):
             tk.Label(box, text="Chọn một tài khoản mẫu - hệ thống tự điền tên đăng nhập và mật khẩu.",
                      font="AppSmall", fg=COLORS["muted"], bg=COLORS["primary_soft"], wraplength=px(340),
                      justify="left").pack(anchor="w", pady=(px(2), px(8)))
-            self.demo_box = ttk.Combobox(box, state="readonly", values=demo_values(self.demo),
+            self.m_cbo_demo = ttk.Combobox(box, state="readonly", values=demo_values(self.demo),
                                          style="Login.TCombobox")
-            self.demo_box.set("Chọn tài khoản dùng thử…")
-            self.demo_box.pack(fill="x")
-            self.demo_box.bind("<<ComboboxSelected>>", self._fill_demo)
+            self.m_cbo_demo.set("Chọn tài khoản dùng thử…")
+            self.m_cbo_demo.pack(fill="x")
+            self.m_cbo_demo.bind("<<ComboboxSelected>>", self._fill_demo)
         ttk.Label(form, text="Ban giám hiệu  •  Giáo viên  •  Kế toán  •  Nhân viên  •  Phụ huynh",
                   style="CardMuted.TLabel", font="AppSmall").grid(row=12, column=0, pady=(px(18), 0))
         user_entry.focus_set()
 
     def _fill_demo(self, _event: Any = None) -> None:
-        index = self.demo_box.current()
+        index = self.m_cbo_demo.current()
         if 0 <= index < len(self.demo):
             username, password, _desc = self.demo[index]
             self.username.set(username)
             self.password.set(password)
-            self.message.configure(text="")
-            self.password_entry.focus_set()
+            self.m_lbl_message.configure(text="")
+            self.m_txt_password.focus_set()
 
     def login(self) -> None:
         try:
             user = self.app.system.auth.login(self.username.get(), self.password.get())
         except AuthenticationError as exc:
-            self.message.configure(text=exc.message)
+            self.m_lbl_message.configure(text=exc.message)
             self.password.set("")
             return
         self.app.on_login(user)
@@ -204,7 +217,7 @@ class LoginFrame(ttk.Frame):
             self.app.save()
             self.username.set(dialog.result.username)
             self.password.set("")
-            self.message.configure(text="")
+            self.m_lbl_message.configure(text="")
             messagebox.showinfo("Đăng ký", done, parent=self)
 
 
@@ -221,27 +234,32 @@ class MainFrame(ttk.Frame):
         system = app.system
         user = system.auth.current_user
         c = COLORS
-        # ---- menu trái (navy) theo nhóm chức năng của phân hệ
-        self.sidebar = Sidebar(self, "Mầm Non", user.portal, self.select_tab)
+        # ---- menu trái (navy) theo nhóm công việc của phân hệ
+        self.sidebar = Sidebar(self, "Mầm Non", system.auth.portal_of(user), self.select_tab)
         self.sidebar.pack(side="left", fill="y")
-        footer = self.sidebar.footer
-        who = tk.Frame(footer, bg=c["sidebar"])
+        footer = self.sidebar.footer   # thẻ tài khoản bo góc ở chân menu
+        card_bg = c["sidebar_card"]
+        who = tk.Frame(footer, bg=card_bg)
         who.pack(fill="x")
-        avatar(who, user.full_name, 38, color=c["orange"], bg=c["sidebar"]).pack(side="left")
-        names = tk.Frame(who, bg=c["sidebar"])
+        avatar(who, user.full_name, 38, color=c["orange"], bg=card_bg).pack(side="left")
+        names = tk.Frame(who, bg=card_bg)
         names.pack(side="left", fill="x", expand=True, padx=(px(10), 0))
-        tk.Label(names, text=user.full_name, font="AppNavBold", fg="white", bg=c["sidebar"], anchor="w",
-                 wraplength=px(170), justify="left").pack(fill="x")
-        role = user.role.label
+        tk.Label(names, text=user.full_name, font="AppNavBold", fg="white", bg=card_bg, anchor="w",
+                 wraplength=px(160), justify="left").pack(fill="x")
+        role = system.auth.role_label(user)
         teacher = system.teacher_of(user)
         if teacher is not None and teacher.homeroom_class_id:
-            role += f" • CN {system.classes.class_name(teacher.homeroom_class_id)}"
-        tk.Label(names, text=role, font="AppSmall", fg=c["sidebar_text"], bg=c["sidebar"], anchor="w",
-                 wraplength=px(170), justify="left").pack(fill="x")
-        links = tk.Frame(footer, bg=c["sidebar"])
+            role += f" • {system.classes.class_name(teacher.homeroom_class_id)}"
+        elif teacher is not None and teacher.specialty:
+            role += f" • {teacher.specialty}"
+        tk.Label(names, text=role, font="AppSmall", fg=c["sidebar_text"], bg=card_bg, anchor="w",
+                 wraplength=px(160), justify="left").pack(fill="x")
+        links = tk.Frame(footer, bg=card_bg)
         links.pack(fill="x", pady=(px(10), 0))
-        sidebar_link(links, "✎  Đổi mật khẩu", self.change_password).pack(side="left", fill="x", expand=True)
-        sidebar_link(links, "↩  Đăng xuất", app.logout).pack(side="left", fill="x", expand=True, padx=(px(6), 0))
+        links.columnconfigure((0, 1), weight=1, uniform="links")
+        sidebar_link(links, "✎  Đổi mật khẩu", self.change_password).grid(row=0, column=0, sticky="ew")
+        sidebar_link(links, "↩  Đăng xuất", app.logout, color="#ffb4a8").grid(row=0, column=1, sticky="ew",
+                                                                               padx=(px(6), 0))
 
         # ---- vùng phải: thanh tiêu đề + nội dung
         right = self.right = ttk.Frame(self, style="App.TFrame")   # mọi thứ trừ menu trái (khung báo cáo phủ lên đây)
@@ -251,25 +269,25 @@ class MainFrame(ttk.Frame):
         tk.Frame(right, bg=c["border"], height=1).pack(fill="x")
         titles = tk.Frame(topbar, bg=c["card"])
         titles.pack(side="left")
-        self.crumb = tk.Label(titles, font="AppSmall", fg=c["muted"], bg=c["card"])
-        self.crumb.pack(anchor="w")
-        self.page_title = tk.Label(titles, font="AppPageTitle", fg=c["navy"], bg=c["card"])
-        self.page_title.pack(anchor="w")
+        self.m_lbl_crumb = tk.Label(titles, font="AppSmall", fg=c["muted"], bg=c["card"])
+        self.m_lbl_crumb.pack(anchor="w")
+        self.m_lbl_page_title = tk.Label(titles, font="AppPageTitle", fg=c["navy"], bg=c["card"])
+        self.m_lbl_page_title.pack(anchor="w")
         ttk.Button(topbar, text="✓  Lưu dữ liệu", style="Accent.TButton", cursor="hand2",
                    command=lambda: app.save(notify=True)).pack(side="right")
         today = date.today()
         tk.Label(topbar, text=f"◷  {WEEKDAYS[today.weekday()]}, {today:%d/%m/%Y}", font="AppSmallBold",
                  fg=c["primary"], bg=c["primary_soft"], padx=px(12), pady=px(6)).pack(side="right", padx=px(12))
-        self.sync_label = tk.Label(topbar, font="AppSmall", bg=c["card"], fg=c["muted"], text="")
-        self.sync_label.pack(side="right", padx=(0, px(4)))
+        self.m_lbl_sync = tk.Label(topbar, font="AppSmall", bg=c["card"], fg=c["muted"], text="")
+        self.m_lbl_sync.pack(side="right", padx=(0, px(4)))
 
         # Dòng trạng thái như mẫu form nghiệp vụ của hướng dẫn: người sử dụng - ngày giờ - phiên bản - dữ liệu
         location = str(getattr(system.store, "location", system.store.data_dir))
         if len(location) > 55:
             location = "…" + location[-50:]
         self._status_tail = f"Phiên bản {__version__}   •   Dữ liệu: {location}"
-        self.status = ttk.Label(right, style="Status.TLabel", padding=(px(24), 0, px(24), px(8)))
-        self.status.pack(side="bottom", fill="x")
+        self.m_lbl_status = ttk.Label(right, style="Status.TLabel", padding=(px(24), 0, px(24), px(8)))
+        self.m_lbl_status.pack(side="bottom", fill="x")
         self._tick_clock()
         wrap = ttk.Frame(right, style="App.TFrame", padding=(px(20), px(16), px(20), px(10)))
         wrap.pack(fill="both", expand=True)
@@ -279,18 +297,22 @@ class MainFrame(ttk.Frame):
         self.tabs: list[BaseTab] = []
         self.groups: list[str] = []
         self.current: BaseTab | None = None
-        for group, classes in NAVIGATION:
-            allowed = [cls for cls in classes if cls.permission is None or system.auth.has_permission(cls.permission)]
-            if not allowed:
+        for group, classes in NAVIGATION:   # thứ tự form, mã form, thanh menu: theo sơ đồ chức năng F1.x
+            for tab_class in classes:
+                if tab_class.permission is None or system.auth.has_permission(tab_class.permission):
+                    self.tabs.append(tab_class(self.content, app))
+                    self.groups.append(group)
+        # menu trái: nhóm theo công việc, tên ngắn gọn (mã F1.x vẫn hiện ở đường dẫn trên tiêu đề form)
+        index_of = {type(tab).__name__: i for i, tab in enumerate(self.tabs)}
+        for group, names in SIDEBAR_GROUPS:
+            present = [n for n in names if n in index_of]
+            if not present:
                 continue
             self.sidebar.add_group(group)
-            for tab_class in allowed:
-                tab = tab_class(self.content, app)
-                number = len(self.tabs) + 1
-                self.sidebar.add_item(len(self.tabs), TAB_ICONS.get(tab_class.__name__, "•"), tab.title,
-                                      f"Ctrl+{number}" if number <= 9 else "")
-                self.tabs.append(tab)
-                self.groups.append(group)
+            for name in present:
+                i = index_of[name]
+                self.sidebar.add_item(i, TAB_ICONS.get(name, "•"), self.tabs[i].title)
+        self.sidebar.finish()
         self._build_menu()
         if self.tabs:
             self.go_home()
@@ -339,8 +361,8 @@ class MainFrame(ttk.Frame):
             return
         user = self.app.system.auth.current_user
         now = datetime.now()
-        who = f"Người sử dụng: {user.username} ({user.role.label})" if user else ""
-        self.status.configure(text=f"{who}   •   {WEEKDAYS[now.weekday()]} {now:%d/%m/%Y %H:%M:%S}   •   "
+        who = f"Người sử dụng: {user.username} ({self.app.system.auth.role_label(user)})" if user else ""
+        self.m_lbl_status.configure(text=f"{who}   •   {WEEKDAYS[now.weekday()]} {now:%d/%m/%Y %H:%M:%S}   •   "
                                    f"{self._status_tail}")
         self.after(1000, self._tick_clock)
 
@@ -373,9 +395,9 @@ class MainFrame(ttk.Frame):
         tab.pack(fill="both", expand=True)
         self.current = tab
         self.sidebar.set_active(index)
-        self.page_title.configure(text=tab.title)
+        self.m_lbl_page_title.configure(text=tab.title)
         code = FORM_CODES.get(type(tab).__name__, "")
-        self.crumb.configure(text=f"{self.app.system.auth.current_user.portal}   ›   {self.groups[index]}   ›   {code}")
+        self.m_lbl_crumb.configure(text=f"{self.app.system.auth.current_user.portal}   ›   {self.groups[index]}   ›   {code}")
         self.winfo_toplevel().title(f"{APP_NAME} - {tab.title} [{code}]")
         try:
             tab.refresh()
@@ -386,7 +408,7 @@ class MainFrame(ttk.Frame):
         """Sau khi tải lại dữ liệu người khác vừa lưu: làm mới màn hình đang mở và báo nhẹ trên thanh tiêu đề."""
         from datetime import datetime
         who = writer.split(" @ ")[0] if writer else "cửa sổ chương trình khác"
-        self.sync_label.configure(text=f"↻ Đã cập nhật thay đổi của {who} lúc {datetime.now():%H:%M:%S}",
+        self.m_lbl_sync.configure(text=f"↻ Đã cập nhật thay đổi của {who} lúc {datetime.now():%H:%M:%S}",
                                   fg=COLORS["ok"])
         if self.current is not None:
             try:
@@ -431,6 +453,13 @@ class KindergartenApp:
         self.log_dir = Path(system.store.data_dir).resolve().parent / "logs"
         self.root = root or tk.Tk()
         self.root.title(f"{APP_NAME} - phiên bản {__version__}")
+        icon = RESOURCE_DIR / "Icons" / "app.png"   # Solution Folder "Resource" (Hướng dẫn XD HTTTQL)
+        if icon.exists():
+            try:
+                self._icon = tk.PhotoImage(file=str(icon))
+                self.root.iconphoto(True, self._icon)
+            except tk.TclError:
+                pass
         detect_scale(self.root)   # màn hình 125% / 150%: phóng kích thước theo tỷ lệ, không bị thu nhỏ
         screen_w, screen_h = self.root.winfo_screenwidth(), self.root.winfo_screenheight()
         width, height = min(px(1366), screen_w - 40), min(px(820), screen_h - 80)
@@ -518,17 +547,68 @@ class KindergartenApp:
             if not self.main.change_password(forced=True):
                 self.show_login()
                 return
+
     def _confirm_unsaved(self) -> bool:
-        """U15: còn điểm danh chưa lưu thì hỏi trước khi đăng xuất / thoát."""
+        """U15: còn điểm danh chưa lưu thì hỏi trước khi thoát."""
         if self.main is None:
             return True
         return all(tab.confirm_discard() for tab in self.main.unsaved_tabs())
 
+    def unsaved_items(self) -> list[str]:
+        """Liệt kê những gì chưa được lưu: màn hình đang sửa dở + thay đổi trong bộ nhớ chưa ghi vào CSDL."""
+        items: list[str] = []
+        if self.main is not None:
+            for tab in self.main.unsaved_tabs():
+                label = getattr(tab, "unsaved_label", None)
+                items.append(label() if callable(label) else f"Màn hình {tab.title} đang sửa dở")
+        pending = getattr(self.system.store, "pending_changes", None)
+        if callable(pending):
+            try:
+                count = pending(self.system)
+            except Exception:   # noqa: BLE001 - không kiểm tra được thì coi như không có
+                count = 0
+            if count:
+                items.append(f"{count} thay đổi dữ liệu chưa ghi vào CSDL")
+        return items
+
     def logout(self) -> None:
-        if not self._confirm_unsaved():
+        """Đăng xuất: hỏi có lưu dữ liệu chưa được lưu không (Có = lưu, Không = bỏ thay đổi, Hủy = ở lại)."""
+        items = self.unsaved_items()
+        if not items:
+            if messagebox.askyesno("Đăng xuất", "Mọi dữ liệu đã được lưu.\nBạn có chắc muốn đăng xuất?",
+                                   parent=self.root):
+                self.show_login()
             return
-        if self.save():
-            self.show_login()
+        listing = "\n".join(f"  •  {item}" for item in items)
+        answer = messagebox.askyesnocancel(
+            "Đăng xuất - còn dữ liệu chưa lưu",
+            f"Còn dữ liệu chưa được lưu:\n{listing}\n\nBạn có muốn lưu trước khi đăng xuất không?\n\n"
+            "Có = lưu rồi đăng xuất\nKhông = bỏ các thay đổi và đăng xuất\nHủy = ở lại làm tiếp",
+            icon="warning", parent=self.root)
+        if answer is None:
+            return
+        tabs = self.main.unsaved_tabs() if self.main is not None else []
+        if answer:
+            for tab in tabs:
+                save_tab = getattr(tab, "save_unsaved", None)
+                if callable(save_tab) and not save_tab():
+                    return   # lưu lỗi -> ở lại để người dùng xử lý
+            if not self.save():
+                return
+        else:
+            for tab in tabs:
+                discard = getattr(tab, "discard_unsaved", None)
+                if callable(discard):
+                    discard()
+            self._discard_memory()
+        self.show_login()
+
+    def _discard_memory(self) -> None:
+        """Bỏ các thay đổi chưa lưu trong bộ nhớ: nạp lại dữ liệu đang có trong CSDL."""
+        try:
+            self.system.load()
+        except KindergartenError as exc:
+            messagebox.showerror("Không tải lại được dữ liệu", exc.message, parent=self.root)
 
     def save(self, notify: bool = False) -> bool:
         store = self.system.store

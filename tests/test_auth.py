@@ -2,7 +2,7 @@
 import pytest
 
 from kindergarten.auth.auth_manager import AuthManager, require_permission
-from kindergarten.auth.user import ROLE_PERMISSIONS, Permission, Role, User
+from kindergarten.auth.user import ROLE_PERMISSIONS, TEACHER_DUTIES, Permission, Role, User
 from kindergarten.exceptions import (AuthenticationError, DuplicateIdError, KindergartenError,
                                      PermissionDeniedError, ValidationError)
 
@@ -32,10 +32,14 @@ def test_five_roles_with_different_permissions():
     assert kitchen.has_permission(Permission.MANAGE_MENU) and not kitchen.has_permission(Permission.CHECK_IN_OUT)
     assert guard.has_permission(Permission.CHECK_IN_OUT) and not guard.has_permission(Permission.VIEW_MENU)
     assert "Bếp" in kitchen.portal
-    assert Permission.DAILY_LOG in ROLE_PERMISSIONS[Role.TEACHER]
+    # giáo viên: phần chung + phần riêng theo loại (chủ nhiệm / bộ môn)
+    homeroom, subject = TEACHER_DUTIES["chu_nhiem"][1], TEACHER_DUTIES["bo_mon"][1]
+    assert {Permission.DAILY_LOG, Permission.TAKE_ATTENDANCE, Permission.CHECK_IN_OUT} <= homeroom
+    assert Permission.TEACH_SUBJECT not in homeroom
+    assert subject == {Permission.TEACH_SUBJECT}
+    assert Permission.DAILY_LOG not in ROLE_PERMISSIONS[Role.TEACHER] | subject
     assert Permission.MANAGE_FINANCE in ROLE_PERMISSIONS[Role.ACCOUNTANT]
-    assert Permission.MANAGE_FINANCE not in ROLE_PERMISSIONS[Role.TEACHER]
-    assert Permission.TAKE_ATTENDANCE in ROLE_PERMISSIONS[Role.TEACHER]
+    assert Permission.MANAGE_FINANCE not in ROLE_PERMISSIONS[Role.TEACHER] | homeroom | subject
     assert Role.parse("Giáo viên") is Role.TEACHER
 
 
@@ -74,9 +78,16 @@ def test_check_permission_by_role(auth):
     with pytest.raises(PermissionDeniedError):
         auth.check_permission(Permission.VIEW_CHILDREN)  # chưa đăng nhập
     auth.login("gv.hoa", "giaovien123")
-    auth.check_permission(Permission.TAKE_ATTENDANCE)
+    auth.check_permission(Permission.VIEW_CHILDREN)
     with pytest.raises(PermissionDeniedError):
         auth.check_permission(Permission.MANAGE_FINANCE)
+    with pytest.raises(PermissionDeniedError):   # chưa biết là GV chủ nhiệm hay bộ môn -> chỉ có quyền chung
+        auth.check_permission(Permission.TAKE_ATTENDANCE)
+    auth.teacher_duty_of = lambda _user: "chu_nhiem"
+    auth.check_permission(Permission.TAKE_ATTENDANCE)
+    assert not auth.has_permission(Permission.TEACH_SUBJECT)
+    auth.teacher_duty_of = lambda _user: "bo_mon"
+    assert auth.has_permission(Permission.TEACH_SUBJECT) and not auth.has_permission(Permission.TAKE_ATTENDANCE)
     auth.logout()
     auth.login("ketoan", "ketoan123")
     auth.check_permission(Permission.MANAGE_FINANCE)

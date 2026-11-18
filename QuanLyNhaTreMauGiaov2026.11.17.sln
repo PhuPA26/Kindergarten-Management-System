@@ -1,0 +1,50 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{888888A0-9F3D-457C-B088-3A5042F75D52}") = "HTTTQL_NhaTreMauGiao", "HTTTQL_NhaTreMauGiao.pyproj", "{6F1B9C2E-4A7D-4E3B-9C51-2D8E7A1F0B34}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Database", "Database", "{4B0D2C1A-7E5F-4D8B-9A11-0C2E3F4A5B61}"
+	ProjectSection(SolutionItems) = preProject
+		Database\01_tao_csdl.sql = Database\01_tao_csdl.sql
+		Database\03_truy_van_mau.sql = Database\03_truy_van_mau.sql
+		Database\HUONG_DAN_LAM_VIEC_NHOM.md = Database\HUONG_DAN_LAM_VIEC_NHOM.md
+		Database\_thiet_ke_mo_dau.md = Database\_thiet_ke_mo_dau.md
+		Database\sinh_tai_lieu_csdl.py = Database\sinh_tai_lieu_csdl.py
+		Database\thiet_ke_csdl.md = Database\thiet_ke_csdl.md
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Dlllib", "Dlllib", "{5C1E3D2B-8F60-4E9C-AB22-1D3F4A5B6C72}"
+	ProjectSection(SolutionItems) = preProject
+		Dlllib\README.md = Dlllib\README.md
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Resource", "Resource", "{6D2F4E3C-9071-4FAD-BC33-2E4A5B6C7D83}"
+	ProjectSection(SolutionItems) = preProject
+		Resource\Icons\app.ico = Resource\Icons\app.ico
+		Resource\Icons\app.png = Resource\Icons\app.png
+		Resource\TaiLieu\01_KhaoSat.md = Resource\TaiLieu\01_KhaoSat.md
+		Resource\TaiLieu\02_PhanTich.md = Resource\TaiLieu\02_PhanTich.md
+		Resource\TaiLieu\03_ThietKe_BieuMau.md = Resource\TaiLieu\03_ThietKe_BieuMau.md
+		Resource\TaiLieu\04_CaiDat.md = Resource\TaiLieu\04_CaiDat.md
+		Resource\TaiLieu\05_KiemThu.md = Resource\TaiLieu\05_KiemThu.md
+		Resource\TaiLieu\06_PhanCong.md = Resource\TaiLieu\06_PhanCong.md
+		Resource\TaiLieu\Bao_cao_ra_soat_he_thong.pdf = Resource\TaiLieu\Bao_cao_ra_soat_he_thong.pdf
+		Resource\TaiLieu\Danh sách task code - HTTTQL Nhà trẻ mẫu giáo (OOP Python) - đã hoàn thành.xlsx = Resource\TaiLieu\Danh sách task code - HTTTQL Nhà trẻ mẫu giáo (OOP Python) - đã hoàn thành.xlsx
+		Resource\TaiLieu\sinh_tai_lieu.py = Resource\TaiLieu\sinh_tai_lieu.py
+	EndProjectSection
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{6F1B9C2E-4A7D-4E3B-9C51-2D8E7A1F0B34}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6F1B9C2E-4A7D-4E3B-9C51-2D8E7A1F0B34}.Release|Any CPU.ActiveCfg = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal

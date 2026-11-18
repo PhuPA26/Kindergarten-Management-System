@@ -36,6 +36,7 @@ from .nutrition.menu_manager import MenuManager
 from .people.child import Child
 from .people.managers import ChildManager, ParentManager
 from .daily.daily_manager import DailyManager
+from .teaching.lesson_log import LessonLogManager
 from .reports.dashboard import Dashboard
 from .reports.submissions import ReportCenter
 from .school_calendar import SchoolCalendar
@@ -76,6 +77,8 @@ class KindergartenSystem:
         self.attendance.class_guard = self.ensure_class_access
         self.health.child_guard = self.ensure_child_access
         self.employees.on_remove(self._on_employee_removed)
+        self.auth.teacher_duty_of = self.teacher_duty   # GV chủ nhiệm / GV bộ môn có quyền khác nhau
+        self.lessons = LessonLogManager(self)   # sổ tiết dạy bộ môn (việc riêng của GV bộ môn)
         self._bind_permissions()
         self.apply_salary_settings()
 
@@ -88,6 +91,7 @@ class KindergartenSystem:
             (self.classes, P.MANAGE_CLASSES), (self.timetable, P.MANAGE_CLASSES),
             (self.attendance, P.TAKE_ATTENDANCE), (self.attendance.leave_requests, P.TAKE_ATTENDANCE),
             (self.invoices, P.MANAGE_FINANCE), (self.menus, P.MANAGE_MENU), (self.menus.meals, P.MANAGE_MENU),
+            (self.lessons, P.TEACH_SUBJECT),
         ]
         for manager, permission in mapping:
             manager.write_permission = permission
@@ -461,6 +465,20 @@ class KindergartenSystem:
             return None
         employee = self.employees.get_or_none(user.employee_id)
         return employee if isinstance(employee, Teacher) else None
+
+    def teacher_duty(self, user: User | None) -> str:
+        """Loại giáo viên theo hồ sơ hiện tại: đang chủ nhiệm một lớp = 'chu_nhiem', còn lại = 'bo_mon'.
+        Tài khoản chưa gắn hồ sơ giáo viên -> '' (không thêm quyền nào)."""
+        teacher = self.teacher_of(user)
+        return self.teacher_duty_for_employee(teacher.id) if teacher is not None else ""
+
+    def teacher_duty_for_employee(self, employee_id: str | None) -> str:
+        teacher = self.employees.get_or_none(employee_id) if employee_id else None
+        if not isinstance(teacher, Teacher):
+            return ""
+        if teacher.homeroom_class_id and self.classes.get_or_none(teacher.homeroom_class_id) is not None:
+            return "chu_nhiem"
+        return "bo_mon"
 
     def is_restricted(self, user: User | None) -> bool:
         """Giáo viên / phụ huynh luôn bị giới hạn theo lớp / con."""

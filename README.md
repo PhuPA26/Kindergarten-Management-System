@@ -1,13 +1,28 @@
 # Hệ thống thông tin quản lý Nhà trẻ - Mẫu giáo (OOP Python)
 
 Chương trình quản lý một trường mầm non được xây dựng theo đúng **34 task** trong file
-`Danh sách task code - HTTTQL Nhà trẻ mẫu giáo (OOP Python).xlsx` (bản đã đánh dấu hoàn thành nằm trong `docs/`).
+`Danh sách task code - HTTTQL Nhà trẻ mẫu giáo (OOP Python).xlsx` (bản đã đánh dấu hoàn thành nằm trong `Resource/TaiLieu/`).
 
 Chức năng chính: **5 phân hệ** theo tài khoản đăng nhập (Ban giám hiệu, Giáo viên, Kế toán, Nhân viên, Phụ huynh),
 tự đăng ký tài khoản, **vận hành hằng ngày 6 bước** (đón trẻ → điểm danh → cập nhật ăn ngủ → tương tác phụ huynh →
 trả trẻ → báo cáo cuối ngày), hồ sơ trẻ và phụ huynh, sức khỏe – dị ứng, nhân sự và bảng lương, lớp học – thời khóa biểu,
 học phí – miễn giảm – công nợ, danh mục dịch vụ tự chọn, lịch nghỉ lễ, thực đơn có cảnh báo dị ứng, báo cáo xuất file.
 Có 2 giao diện: **menu console** và **cửa sổ Tkinter**.
+
+### Tài liệu theo *Hướng dẫn xây dựng HTTTQL* (5 bước: Khảo sát → Phân tích → Thiết kế → Cài đặt → Kiểm thử)
+
+| Bước | Tài liệu |
+|---|---|
+| I. Khảo sát | `Resource/TaiLieu/01_KhaoSat.md` - 4W+1H, hệ thống cũ, yêu cầu, phạm vi, biểu mẫu / báo cáo / dữ liệu / quy trình |
+| II. Phân tích | `Resource/TaiLieu/02_PhanTich.md` - sơ đồ phân cấp chức năng (F1.1 - F1.5), luồng dữ liệu; ERD ở `Database/thiet_ke_csdl.md` |
+| III. Thiết kế | CSDL: `Database/`; giao diện: chương trình (Master - Detail, menu); biểu mẫu: `Resource/TaiLieu/03_ThietKe_BieuMau.md` |
+| IV. Cài đặt | `Resource/TaiLieu/04_CaiDat.md` - kiến trúc 3 tầng, Solution / Naming / Coding convention, danh sách form `frm000`-`frm026` |
+| V. Kiểm thử | `Resource/TaiLieu/05_KiemThu.md` - quy trình, danh sách test tự động, kịch bản kiểm thử tay, ghi phản hồi |
+| Phân công | `Resource/TaiLieu/06_PhanCong.md` |
+
+Solution: **`QuanLyNhaTreMauGiaov2026.11.17.sln`** (mở bằng Visual Studio), Solution Folder `Database`, `Dlllib`, `Resource`.
+Phần tự động của tài liệu sinh lại bằng `python Resource/TaiLieu/sinh_tai_lieu.py --chay-test` và
+`python Database/sinh_tai_lieu_csdl.py`.
 
 ---
 
@@ -20,10 +35,10 @@ Có 2 giao diện: **menu console** và **cửa sổ Tkinter**.
 
 ### Lần chạy đầu
 1. Chạy chương trình (`python main.py --gui` hoặc F5 trong Visual Studio).
-2. Chương trình tự tạo file `data/ql_mam_non.db` với 40 bảng (thiết kế: `docs/CSDL/thiet_ke_csdl.md`, câu lệnh:
-   `docs/CSDL/01_tao_csdl.sql`). Nếu `data/` có các file JSON cũ, dữ liệu được tự chuyển sang; nếu không, chương trình
+2. Chương trình tự tạo file `data/ql_mam_non.db` với 42 bảng (thiết kế: `Database/thiet_ke_csdl.md`, câu lệnh:
+   `Database/01_tao_csdl.sql`). Nếu `data/` có các file JSON cũ, dữ liệu được tự chuyển sang; nếu không, chương trình
    hỏi có nạp dữ liệu mẫu không.
-3. **Làm nhóm 2 người**: xem `docs/CSDL/HUONG_DAN_LAM_VIEC_NHOM.md` (mỗi người một file `.db`, trao đổi file khi cần).
+3. **Làm nhóm 2 người**: xem `Database/HUONG_DAN_LAM_VIEC_NHOM.md` (mỗi người một file `.db`, trao đổi file khi cần).
 
 ## 2. Cách chạy
 
@@ -42,7 +57,7 @@ cd /d D:\HTTTQL_NhaTreMauGiao
 | `python seed_data.py` | Chỉ nạp dữ liệu mẫu vào `data/ql_mam_non.db` (cũng hỏi xác nhận + sao lưu) |
 | `python main.py --gui --db D:\...\ql_mam_non.db` | Mở một file CSDL khác (VD file bạn cùng nhóm gửi) |
 | `python main.py --json` | Chạy bằng file JSON trong `data/` (chế độ cũ, dùng cho kiểm thử) |
-| `python -m pytest` | Chạy **116 test** tự động |
+| `python -m pytest` | Chạy **143 test** tự động (gồm test giao diện cho cả 12 tài khoản mẫu) |
 
 Hoặc nhấp đúp các file: `chay_console.bat`, `chay_giao_dien.bat`, `chay_kiem_thu.bat`.
 
@@ -63,7 +78,7 @@ khi chọn trẻ/lớp có thể gõ số thứ tự, mã (VD `C001`) hoặc t�
 | `ketoan` | `ketoan123` | **Kế toán** |
 | `gv.nhung` | `giaovien123` | **Giáo viên** chủ nhiệm lớp Mầm Sơn Ca |
 | `gv.ha`, `gv.maianh` | `giaovien123` | Giáo viên chủ nhiệm lớp Chồi Họa Mi, Lá Vành Khuyên |
-| `gv.tuan`, `gv.lan` | `giaovien123` | Giáo viên Âm nhạc, Tiếng Anh |
+| `gv.tuan`, `gv.lan` | `giaovien123` | **Giáo viên bộ môn** Âm nhạc, Tiếng Anh (dạy cả 3 lớp) |
 | `nv.sau` | `nhanvien123` | **Nhân viên** cấp dưỡng (thực đơn, món ăn) |
 | `nv.hung` | `nhanvien123` | Nhân viên bảo vệ (đón / trả trẻ ở cổng) |
 | `nv.yen` | `nhanvien123` | Nhân viên y tế (cân đo, dị ứng) |
@@ -89,7 +104,8 @@ Mỗi phân hệ **chỉ có các màn hình đúng nhiệm vụ** (không hiệ
 | Phân hệ | Màn hình có trong phân hệ |
 |---|---|
 | **Ban giám hiệu** (quyền cao nhất) | Tất cả: vận hành hôm nay, hồ sơ, lớp học, tài chính, thực đơn, **Báo cáo nhận được** (duyệt / yêu cầu bổ sung), tổng quan, lịch năm học, tài khoản & dữ liệu |
-| **Giáo viên** (chỉ lớp mình) | Vận hành hôm nay, Đón - trả trẻ, Điểm danh, Ăn ngủ - sinh hoạt, Trao đổi phụ huynh, Trẻ, Phụ huynh, Sức khỏe, Thời khóa biểu, Thực đơn (xem), Lập & gửi báo cáo |
+| **Giáo viên chủ nhiệm** (lớp mình) | Vận hành hôm nay, Đón - trả trẻ, Điểm danh, Ăn ngủ - sinh hoạt, Trao đổi phụ huynh, Trẻ, Phụ huynh, Sức khỏe, Thời khóa biểu, Thực đơn (xem), Lập & gửi báo cáo (cuối ngày, chuyên cần, đón trả, sức khỏe) |
+| **Giáo viên bộ môn** (các lớp có tiết dạy) | **Sổ tiết dạy bộ môn** (lịch dạy trong ngày, ghi nội dung bài dạy, đánh giá chung, nhận xét từng trẻ), Trẻ, Phụ huynh, Thời khóa biểu, Lập & gửi **Báo cáo chuyên môn bộ môn tháng**. Không đón trả, điểm danh, ăn ngủ, sức khỏe, dặn thuốc |
 | **Kế toán** | Học phí, Dịch vụ, Nhân sự - bảng lương, Lập & gửi báo cáo (doanh thu, công nợ, bảng lương) |
 | **Nhân viên - Bếp** | Thực đơn & món ăn, Lập & gửi báo cáo bếp |
 | **Nhân viên - Bảo vệ** | Đón - trả trẻ ở cổng, Lập & gửi báo cáo đón trả |
@@ -98,6 +114,8 @@ Mỗi phân hệ **chỉ có các màn hình đúng nhiệm vụ** (không hiệ
 
 Công việc của nhân viên (bếp / bảo vệ / y tế) lấy theo **chức vụ trong hồ sơ nhân sự**, nên tài khoản nhân viên
 mở đúng phân hệ con (VD "Hệ thống Nhân viên - Bếp - cấp dưỡng").
+Loại giáo viên lấy theo **phân công chủ nhiệm**: giáo viên đang chủ nhiệm một lớp mở "Hệ thống Giáo viên - Chủ nhiệm",
+giáo viên không chủ nhiệm lớp nào mở "Hệ thống Giáo viên - Bộ môn" (đổi phân công thì lần đăng nhập sau đổi theo).
 
 Menu (console) và các màn hình (Tkinter) chỉ hiện chức năng của vai trò đang đăng nhập. Quyền còn được kiểm tra ngay trong
 **tầng nghiệp vụ** (`BaseManager.write_permission`), nên gọi trực tiếp manager cũng không vượt quyền được.
@@ -124,7 +142,7 @@ HTTTQL_NhaTreMauGiao/
 │   ├── finance/             T21-T24 - Fee..., Discount, Invoice, Payment, InvoiceManager, FeeSettings
 │   ├── nutrition/           T25-T26 - Meal, Menu, MenuManager
 │   ├── reports/             T27-T29 - Report và các báo cáo, export(), Dashboard
-│   ├── storage/             T30 - schema.py (40 bảng), SQLiteDataStore (sqlite_store.py), DataStore (datastore.py, JSON cũ)
+│   ├── storage/             T30 - schema.py (42 bảng), SQLiteDataStore (sqlite_store.py), DataStore (datastore.py, JSON cũ)
 │   ├── school_calendar.py   Lịch năm học: ngày nghỉ lễ, học Thứ 7 (dùng chung cho điểm danh/tiền ăn/thực đơn)
 │   ├── daily/               Vận hành hằng ngày: DailyLog (ăn ngủ), Message (nhắn/dặn thuốc/xin nghỉ), DailyManager
 │   ├── applog.py            Nhật ký lỗi (xoay vòng) và nhật ký thao tác audit.jsonl
@@ -132,7 +150,9 @@ HTTTQL_NhaTreMauGiao/
 │       ├── console/         T08 - MainMenu, Menu, ConsoleIO, screens/ (mỗi nhóm nghiệp vụ 1 màn hình)
 │       └── gui/             T34 - ứng dụng Tkinter (app.py, tabs_*.py, widgets.py)
 ├── tests/                   T33 - pytest cho từng manager
-├── docs/                    danh sách task; docs/CSDL/ - thiết kế CSDL, câu lệnh tạo bảng, truy vấn mẫu
+├── Database/                (Solution Folder) thiết kế CSDL, câu lệnh tạo bảng, truy vấn mẫu, hướng dẫn dùng CSDL
+├── Dlllib/                  (Solution Folder) thư viện ngoài - dự án chỉ dùng thư viện chuẩn của Python
+├── Resource/                (Solution Folder) Icons/ - biểu tượng; TaiLieu/ - tài liệu khảo sát, phân tích, thiết kế...
 ├── data/                    ql_mam_non.db - file CSDL SQLite; backups/ - các bản sao lưu .zip; file JSON cũ
 ├── exports/                 (tự tạo) báo cáo xuất ra .txt / .csv
 └── logs/                    (tự tạo) error.log khi có lỗi ngoài dự kiến
@@ -171,10 +191,10 @@ HTTTQL_NhaTreMauGiao/
 | T27 | Report | `reports/reports.py`: `EnrollmentReport`, `AttendanceReport`, `RevenueReport`, `DebtReport` (+ `PayrollReport`) |
 | T28 | export() | `Report.export()` → `.txt` hoặc `.csv` (UTF-8 có BOM, mở đúng tiếng Việt bằng Excel) |
 | T29 | Dashboard | `reports/dashboard.py` |
-| T30 | DataStore | `storage/sqlite_store.py`: `save_all()`, `load_all()` với **SQLite** (module `sqlite3`, giao dịch, chỉ ghi đối tượng thay đổi), sao lưu / khôi phục; `storage/schema.py`: 40 bảng + chuyển đối tượng ↔ dòng; `storage/datastore.py`: bản JSON cũ |
+| T30 | DataStore | `storage/sqlite_store.py`: `save_all()`, `load_all()` với **SQLite** (module `sqlite3`, giao dịch, chỉ ghi đối tượng thay đổi), sao lưu / khôi phục; `storage/schema.py`: 42 bảng + chuyển đối tượng ↔ dòng; `storage/datastore.py`: bản JSON cũ |
 | T31 | seed_data.py | `seed_data.py` |
 | T32 | main.py | `main.py` + `system.py` |
-| T33 | tests/ | `tests/test_*.py` - 116 test (gồm `test_review_fixes.py` cho báo cáo rà soát, `test_portals_daily.py` cho 5 phân hệ và vận hành hằng ngày) |
+| T33 | tests/ | `tests/test_*.py` - 143 test (gồm `test_gui_smoke.py` mở mọi form của mọi phân hệ, `test_review_fixes.py` cho báo cáo rà soát, `test_portals_daily.py` cho 5 phân hệ và vận hành hằng ngày) |
 | T34 | Tkinter (tùy chọn) | `ui/gui/` - 12 tab theo quyền |
 
 ## 6b. Vận hành hằng ngày (6 bước)
@@ -264,17 +284,17 @@ Phần **tiêm chủng đã được bỏ** theo yêu cầu (file `vaccinations.
 ## 9. Dữ liệu và báo cáo
 
 - Dữ liệu lưu trong CSDL **SQLite** - file `data/ql_mam_non.db` (UTF-8, tiếng Việt đầy đủ), thiết kế theo *Hướng dẫn xây dựng
-  HTTTQL*: 40 bảng chuẩn hóa, tên bảng `MN_<HT|DM|NV>_<TÊN>` (HT = quản trị hệ thống, DM = danh mục, NV = nghiệp vụ),
+  HTTTQL*: 42 bảng chuẩn hóa, tên bảng `MN_<HT|DM|NV>_<TÊN>` (HT = quản trị hệ thống, DM = danh mục, NV = nghiệp vụ),
   khóa chính / khóa ngoại / ràng buộc kiểm tra đầy đủ, quan hệ n-n tách bảng trung gian (trẻ - phụ huynh, trẻ - dịch vụ,
-  thực đơn - món ăn...). Chi tiết, sơ đồ ERD và từ điển dữ liệu: `docs/CSDL/thiet_ke_csdl.md`; 15 truy vấn mẫu:
-  `docs/CSDL/03_truy_van_mau.sql`.
+  thực đơn - món ăn...). Chi tiết, sơ đồ ERD và từ điển dữ liệu: `Database/thiet_ke_csdl.md`; 15 truy vấn mẫu:
+  `Database/03_truy_van_mau.sql`.
 
   Ví dụ trong DB Browser for SQLite (thẻ Execute SQL):
   `SELECT HO_TEN, MA_LOP, TRANG_THAI FROM MN_DM_TRE WHERE TRANG_THAI = 'Đang học';`
 - Tự lưu sau mỗi thao tác **thành công**: chỉ ghi các đối tượng thay đổi, tất cả trong **một giao dịch** - lỗi giữa
   chừng thì rollback, file CSDL giữ nguyên trạng cũ. Khóa ngoại được bật (`PRAGMA foreign_keys = ON`).
 - **Làm nhóm**: mỗi người một file `.db`, trao đổi file khi cần dùng dữ liệu của nhau - xem
-  `docs/CSDL/HUONG_DAN_LAM_VIEC_NHOM.md`. Mở 2 cửa sổ chương trình trên cùng file thì mỗi cửa sổ tự nhận thay đổi
+  `Database/HUONG_DAN_LAM_VIEC_NHOM.md`. Mở 2 cửa sổ chương trình trên cùng file thì mỗi cửa sổ tự nhận thay đổi
   của cửa sổ kia (bảng `MN_HT_PHIEN_BAN`), không ghi đè khi cùng thêm mới trùng mã.
 - **Sao lưu** (tab Hệ thống / tự động khi nạp dữ liệu mẫu, khôi phục): xuất mọi bảng ra file `.zip` trong `data/backups/`,
   giữ 10 bản gần nhất + 1 bản mỗi tháng. *Khôi phục* nạp bản `.zip` ngược lại vào CSDL (hiện trạng được sao lưu trước).
@@ -292,14 +312,16 @@ pip install -r requirements.txt
 python -m pytest
 ```
 
-116 test kiểm tra: nền tảng (mã tự sinh, CRUD, kiểm tra dữ liệu), đăng nhập/phân quyền, trẻ & phụ huynh, sức khỏe,
+143 test kiểm tra: nền tảng (mã tự sinh, CRUD, kiểm tra dữ liệu), đăng nhập/phân quyền, trẻ & phụ huynh, sức khỏe,
 lương đa hình, sĩ số/độ tuổi/chuyển lớp, trùng tiết TKB, điểm danh & đơn nghỉ, học phí/miễn giảm/công nợ,
-cảnh báo dị ứng, báo cáo & xuất file, lưu/đọc JSON, và chạy menu console từ đầu đến cuối bằng dữ liệu nhập giả lập.
+cảnh báo dị ứng, báo cáo & xuất file, lưu/đọc JSON và SQLite, chạy menu console từ đầu đến cuối bằng dữ liệu nhập
+giả lập, và giao diện Tkinter (mở mọi form của 12 tài khoản mẫu). Kế hoạch và kịch bản kiểm thử tay:
+`Resource/TaiLieu/05_KiemThu.md`.
 `tests/test_review_fixes.py` có một test hồi quy cho từng lỗi trong *Báo cáo rà soát hệ thống* (L01–L27, P01, P03).
 
 ## 11. Các sửa đổi theo báo cáo rà soát
 
-Báo cáo: `docs/Bao_cao_ra_soat_he_thong.pdf`. Đã sửa toàn bộ 27 lỗi logic L01–L27 và phần lớn các mục K, P, U.
+Báo cáo: `Resource/TaiLieu/Bao_cao_ra_soat_he_thong.pdf`. Đã sửa toàn bộ 27 lỗi logic L01–L27 và phần lớn các mục K, P, U.
 Các mục **chưa làm hoặc làm một phần** (vì đổi kiến trúc lớn, rủi ro cao so với lợi ích ở quy mô một trường):
 
 - **K02** (một nguồn duy nhất cho quan hệ trẻ–lớp–phụ huynh): vẫn lưu hai chiều, có `sync_links()` đồng bộ khi đọc file.

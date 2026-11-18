@@ -10,7 +10,7 @@ from ..core.base_manager import BaseManager
 from ..exceptions import (AuthenticationError, DuplicateIdError, KindergartenError,
                           PermissionDeniedError, ValidationError)
 from ..utils import normalize_spaces
-from .user import Permission, Role, User
+from .user import TEACHER_DUTIES, Permission, Role, User
 
 F = TypeVar("F", bound=Callable[..., Any])
 
@@ -26,6 +26,8 @@ class AuthManager(BaseManager[User]):
         self.current_user: User | None = None
         self.elevated = False
         self._failures: dict[str, tuple[int, datetime | None]] = {}
+        # Hệ thống gắn hàm xác định loại giáo viên (chủ nhiệm / bộ môn) theo hồ sơ nhân sự - xem KindergartenSystem
+        self.teacher_duty_of: Callable[[User], str] | None = None
 
     # ------------------------------------------------------------------ kiểm tra dữ liệu
     def _validate_new(self, user: User) -> None:
@@ -162,15 +164,43 @@ class AuthManager(BaseManager[User]):
         user.must_change_password = False
 
     # ------------------------------------------------------------------ phân quyền
+    def teacher_duty(self, user: User | None) -> str:
+        """'chu_nhiem' / 'bo_mon' cho tài khoản giáo viên (tính theo hồ sơ hiện tại), '' cho vai trò khác."""
+        if user is None or user.role is not Role.TEACHER or self.teacher_duty_of is None:
+            return ""
+        return self.teacher_duty_of(user)
+
+    def permissions_of(self, user: User | None) -> frozenset[Permission]:
+        """Quyền thực tế: quyền của vai trò + quyền theo loại giáo viên (chủ nhiệm / bộ môn)."""
+        if user is None:
+            return frozenset()
+        permissions = user.permissions
+        duty = self.teacher_duty(user)
+        if permissions and duty in TEACHER_DUTIES:
+            permissions = permissions | TEACHER_DUTIES[duty][1]
+        return permissions
+
+    def role_label(self, user: User | None) -> str:
+        duty = self.teacher_duty(user)
+        if duty in TEACHER_DUTIES:
+            return TEACHER_DUTIES[duty][0]
+        return user.role.label if user is not None else ""
+
+    def portal_of(self, user: User) -> str:
+        duty = self.teacher_duty(user)
+        if duty in TEACHER_DUTIES:
+            return f"{user.role.portal} - {'Chủ nhiệm' if duty == 'chu_nhiem' else 'Bộ môn'}"
+        return user.portal
+
     def has_permission(self, permission: Permission) -> bool:
-        return self.current_user is not None and self.current_user.has_permission(permission)
+        return permission in self.permissions_of(self.current_user)
 
     def check_permission(self, permission: Permission) -> None:
         """Ném PermissionDeniedError nếu chưa đăng nhập hoặc vai trò không có quyền."""
         user = self._require_login()
-        if not user.has_permission(permission):
+        if permission not in self.permissions_of(user):
             raise PermissionDeniedError(
-                f"Vai trò '{user.role.label}' không có quyền: {permission.value.lower()}.")
+                f"Vai trò '{self.role_label(user)}' không có quyền: {permission.value.lower()}.")
 
     def _require_login(self) -> User:
         if self.current_user is None:

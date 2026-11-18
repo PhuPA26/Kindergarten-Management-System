@@ -135,9 +135,10 @@ class ReportCenter(BaseManager[SubmittedReport]):
         user = user or self._user
         if user is None:
             return list(REPORT_TYPES)
-        if not (user.has_permission(Permission.SUBMIT_REPORTS) or user.has_permission(Permission.REVIEW_REPORTS)):
+        granted = self.system.auth.permissions_of(user)   # gồm cả quyền theo loại giáo viên (chủ nhiệm / bộ môn)
+        if not ({Permission.SUBMIT_REPORTS, Permission.REVIEW_REPORTS} & granted):
             return []
-        return [spec for spec in REPORT_TYPES if user.has_permission(spec["permission"])]
+        return [spec for spec in REPORT_TYPES if spec["permission"] in granted]
 
     def _check_type(self, type_key: str) -> dict[str, Any]:
         spec = REPORT_BY_KEY.get(type_key)
@@ -189,7 +190,7 @@ class ReportCenter(BaseManager[SubmittedReport]):
         user = self._user
         item = SubmittedReport(type_key, saved, report_data_to_dict(report.data),
                                user.username if user else "he_thong", user.full_name if user else "Hệ thống",
-                               user.portal.replace("Hệ thống ", "") if user else "", note)
+                               self.system.auth.portal_of(user).replace("Hệ thống ", "") if user else "", note)
         return self.add(item)
 
     def refresh_data(self, report_id: str) -> SubmittedReport:

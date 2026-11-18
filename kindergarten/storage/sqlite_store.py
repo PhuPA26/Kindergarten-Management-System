@@ -1,6 +1,6 @@
 """Lưu trữ bằng SQLite - toàn bộ CSDL nằm trong MỘT file (mặc định data/ql_mam_non.db), không cần cài máy chủ.
 
-Thiết kế bảng: schema.py (40 bảng chuẩn hóa, tài liệu docs/CSDL/thiet_ke_csdl.md). Xem / sửa bảng bằng
+Thiết kế bảng: schema.py (42 bảng chuẩn hóa, tài liệu Database/thiet_ke_csdl.md). Xem / sửa bảng bằng
 "DB Browser for SQLite" (mở thẳng file .db).
 
 Ghi dữ liệu:
@@ -240,6 +240,17 @@ class SQLiteDataStore:
         self._revision = revision + 1
         self.needs_reload = others and not force
         return self.location
+
+    def pending_changes(self, system: "KindergartenSystem") -> int:
+        """Số đối tượng trong bộ nhớ đã thay đổi / bị xóa mà CHƯA ghi vào CSDL (0 = đã lưu hết)."""
+        if self._hashes is None:
+            return 0
+        count = 0
+        for name, items in _rows_of(system).items():
+            old = self._hashes.get(name, {})
+            count += sum(1 for key, rows in items.items() if old.get(key) != _hash(rows))
+            count += sum(1 for key in old if key not in items)
+        return count
 
     def _check_conflicts(self, conn: sqlite3.Connection, changed: dict[str, dict[str, Rowset]]) -> None:
         """Đối tượng MỚI của mình có mã đã bị cửa sổ khác dùng (cùng thêm mới một lúc) -> không ghi đè."""

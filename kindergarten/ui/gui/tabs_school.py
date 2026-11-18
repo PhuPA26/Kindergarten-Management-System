@@ -37,11 +37,11 @@ class EmployeesTab(BaseTab):
         entry = ttk.Entry(bar, textvariable=self.keyword, width=26)
         entry.pack(side="left", padx=4)
         entry.bind("<KeyRelease>", lambda _e: self.refresh())
-        self.table = DataTable(self, [("Mã", 60), ("Họ tên", 170), ("Loại", 80), ("Chức vụ", 150), ("SĐT", 100),
+        self.m_fg_list = DataTable(self, [("Mã", 60), ("Họ tên", 170), ("Loại", 80), ("Chức vụ", 150), ("SĐT", 100),
                                       ("Vào làm", 90), ("Thâm niên", 75, "e"), ("Lớp CN", 120),
                                       ("Lương tháng này", 120, "e")])
-        self.table.pack(fill="both", expand=True)
-        self.table.on_double_click(self.view)
+        self.m_fg_list.pack(fill="both", expand=True)
+        self.m_fg_list.on_double_click(self.view)
         self.master_bar(self.add_employee, self.edit, self.delete, P.MANAGE_EMPLOYEES, extras=[
             ("Hồ sơ", self.view), ("Giờ làm thêm", self.overtime, P.MANAGE_EMPLOYEES),
             ("Bảng lương tháng", self.payroll, P.VIEW_PAYROLL),
@@ -68,10 +68,10 @@ class EmployeesTab(BaseTab):
             rows.append([e.id, e.full_name, e.role_name, position, e.phone, format_date(e.hire_date),
                          f"{e.years_of_service()} năm", homeroom,
                          format_vnd(e.calculate_salary()) if show_salary else "-"])
-        self.table.set_rows(rows, [e.id for e in employees])
+        self.m_fg_list.set_rows(rows, [e.id for e in employees])
 
     def _selected(self) -> Employee | None:
-        return self.selected(self.table, self.system.employees.get, "một nhân sự")
+        return self.selected(self.m_fg_list, self.system.employees.get, "một nhân sự")
 
     def _common_fields(self, e: Employee | None) -> list[Field]:
         return [
@@ -195,22 +195,22 @@ class ClassesTab(BaseTab):
     permission = P.MANAGE_CLASSES
 
     def build(self) -> None:
-        self.notice = ttk.Label(self, style="Muted.TLabel")
-        self.notice.pack(anchor="w")
+        self.m_lbl_notice = ttk.Label(self, style="Muted.TLabel")
+        self.m_lbl_notice.pack(anchor="w")
         panes = ttk.PanedWindow(self, orient="horizontal")
         panes.pack(fill="both", expand=True)
         left, right = ttk.Frame(panes), ttk.Frame(panes)
         panes.add(left, weight=3)
         panes.add(right, weight=2)
         ttk.Label(left, text="Danh sách lớp", style="Section.TLabel").pack(anchor="w")
-        self.class_table = DataTable(left, [("Mã", 55), ("Tên lớp", 140), ("Khối", 70), ("Độ tuổi", 60, "center"),
+        self.m_fg_classes = DataTable(left, [("Mã", 55), ("Tên lớp", 140), ("Khối", 70), ("Độ tuổi", 60, "center"),
                                             ("Phòng", 60), ("GV chủ nhiệm", 160), ("Sĩ số", 60, "center")])
-        self.class_table.pack(fill="both", expand=True)
-        self.class_table.on_select(self.refresh_children)
+        self.m_fg_classes.pack(fill="both", expand=True)
+        self.m_fg_classes.on_select(self.refresh_children)
         ttk.Label(right, text="Trẻ trong lớp", style="Section.TLabel").pack(anchor="w")
-        self.child_table = DataTable(right, [("Mã", 55), ("Họ tên", 160), ("Giới tính", 65, "center"),
+        self.m_fg_children = DataTable(right, [("Mã", 55), ("Họ tên", 160), ("Giới tính", 65, "center"),
                                              ("Tuổi", 100)])
-        self.child_table.pack(fill="both", expand=True)
+        self.m_fg_children.pack(fill="both", expand=True)
         self.master_bar(self.create_class, self.edit_class, self.delete_class, P.MANAGE_CLASSES, extras=[
             ("Xếp lớp", self.enroll, P.MANAGE_CLASSES), ("Chuyển lớp", self.transfer, P.MANAGE_CLASSES),
             ("Rút khỏi lớp", self.unenroll, P.MANAGE_CLASSES), ("In danh sách lớp", self.print_list)])
@@ -224,7 +224,7 @@ class ClassesTab(BaseTab):
     def refresh(self) -> None:
         classes = self.system.classes_for(self.user)   # L08: giáo viên chỉ thấy lớp mình phụ trách
         mismatches = len(self._mismatches())
-        self.notice.configure(text=f"⚠ {mismatches} trẻ đang lệch độ tuổi so với lớp - bấm 'Trẻ lệch độ tuổi'."
+        self.m_lbl_notice.configure(text=f"⚠ {mismatches} trẻ đang lệch độ tuổi so với lớp - bấm 'Trẻ lệch độ tuổi'."
                               if mismatches else "")
         rows, tags = [], []
         for c in classes:
@@ -232,17 +232,17 @@ class ClassesTab(BaseTab):
             rows.append([c.id, c.name, c.age_group.label, f"{c.min_age}-{c.max_age}", c.room or "-",
                          teacher.full_name if teacher else "(chưa phân công)", f"{c.size}/{c.capacity}"])
             tags.append("warn" if c.is_full else None)
-        self.class_table.set_rows(rows, [c.id for c in classes], tags)
+        self.m_fg_classes.set_rows(rows, [c.id for c in classes], tags)
         self.refresh_children()
 
     def refresh_children(self) -> None:
-        class_id = self.class_table.selected_id()
+        class_id = self.m_fg_classes.selected_id()
         children = self.system.classes.class_list(class_id) if class_id and self.system.classes.exists(class_id) else []
-        self.child_table.set_rows([[c.id, c.full_name, c.gender, c.age_text] for c in children],
+        self.m_fg_children.set_rows([[c.id, c.full_name, c.gender, c.age_text] for c in children],
                                   [c.id for c in children])
 
     def _selected_class(self) -> Classroom | None:
-        return self.selected(self.class_table, self.system.classes.get, "một lớp")
+        return self.selected(self.m_fg_classes, self.system.classes.get, "một lớp")
 
     def _class_fields(self, c: Classroom | None = None) -> list[Field]:
         fields = [Field("name", "Tên lớp", default=c.name if c else None),
@@ -295,7 +295,7 @@ class ClassesTab(BaseTab):
                   lambda v: self.system.classes.enroll(v["child_id"], classroom.id), success="Đã xếp lớp.")
 
     def transfer(self) -> None:
-        child = self.selected(self.child_table, self.system.children.get, "một trẻ ở bảng bên phải")
+        child = self.selected(self.m_fg_children, self.system.children.get, "một trẻ ở bảng bên phải")
         if child is None:
             return
         targets = [c for c in self.system.classes.all_sorted() if c.id != child.class_id]
@@ -305,7 +305,7 @@ class ClassesTab(BaseTab):
                   success=lambda c: f"Đã chuyển {child.full_name} sang lớp {c.name}.")
 
     def unenroll(self) -> None:
-        child = self.selected(self.child_table, self.system.children.get, "một trẻ ở bảng bên phải")
+        child = self.selected(self.m_fg_children, self.system.children.get, "một trẻ ở bảng bên phải")
         if child and self.confirm(f"Rút {child.full_name} khỏi lớp {self.class_name(child.class_id)}?"):
             self.guard(self.system.classes.unenroll, child.id, success="Đã rút trẻ khỏi lớp.")
 
@@ -378,46 +378,46 @@ class TimetableTab(BaseTab):
     def build(self) -> None:
         bar = self.bar()
         ttk.Label(bar, text="Xem theo:").pack(side="left")
-        self.mode = ttk.Combobox(bar, state="readonly", width=12, values=["Lớp", "Giáo viên"])
-        self.mode.set("Lớp")
-        self.mode.pack(side="left", padx=4)
-        self.mode.bind("<<ComboboxSelected>>", self._on_mode_change)
-        self.target = ttk.Combobox(bar, state="readonly", width=40)
-        self.target.pack(side="left", padx=4)
-        self.target.bind("<<ComboboxSelected>>", lambda _e: self.refresh())
-        self.grid_table = DataTable(self, height=7)
-        self.grid_table.pack(fill="both", expand=True)
+        self.m_cbo_mode = ttk.Combobox(bar, state="readonly", width=12, values=["Lớp", "Giáo viên"])
+        self.m_cbo_mode.set("Lớp")
+        self.m_cbo_mode.pack(side="left", padx=4)
+        self.m_cbo_mode.bind("<<ComboboxSelected>>", self._on_mode_change)
+        self.m_cbo_target = ttk.Combobox(bar, state="readonly", width=40)
+        self.m_cbo_target.pack(side="left", padx=4)
+        self.m_cbo_target.bind("<<ComboboxSelected>>", lambda _e: self.refresh())
+        self.m_fg_grid = DataTable(self, height=7)
+        self.m_fg_grid.pack(fill="both", expand=True)
         ttk.Label(self, text="Chi tiết các tiết", style="Section.TLabel").pack(anchor="w", pady=(8, 0))
-        self.slot_table = DataTable(self, [("Mã", 60), ("Thứ", 70), ("Giờ", 100), ("Hoạt động", 200), ("Lớp", 140),
+        self.m_fg_slots = DataTable(self, [("Mã", 60), ("Thứ", 70), ("Giờ", 100), ("Hoạt động", 200), ("Lớp", 140),
                                            ("Giáo viên", 170)], height=8)
-        self.slot_table.pack(fill="both", expand=True)
+        self.m_fg_slots.pack(fill="both", expand=True)
         actions = self.bar(pady=(8, 0))
         self.button(actions, "Thêm tiết học", self.add_slot, P.MANAGE_CLASSES, style="Accent.TButton")
         self.button(actions, "Xóa tiết học", self.remove_slot, P.MANAGE_CLASSES)
 
     def _target_options(self) -> list[str]:
-        if self.mode.get() == "Lớp":
+        if self.m_cbo_mode.get() == "Lớp":
             return [f"{c.id} - {c.name}" for c in self.system.classes_for(self.user)]
         return [f"{t.id} - {t.full_name}" for t in self.system.employees.teachers()]
 
     def _on_mode_change(self, _event: Any = None) -> None:
-        self.target.set("")
+        self.m_cbo_target.set("")
         self.refresh()
 
     def refresh(self) -> None:
         options = self._target_options()
-        self.target["values"] = options
-        if self.target.get() not in options:
-            self.target.set(options[0] if options else "")
-        target_id = self.target.get().split(" - ")[0] if self.target.get() else None
+        self.m_cbo_target["values"] = options
+        if self.m_cbo_target.get() not in options:
+            self.m_cbo_target.set(options[0] if options else "")
+        target_id = self.m_cbo_target.get().split(" - ")[0] if self.m_cbo_target.get() else None
         if not target_id:
-            self.grid_table.set_columns([("Giờ", 100)])
-            self.grid_table.set_rows([])
-            self.slot_table.set_rows([])
+            self.m_fg_grid.set_columns([("Giờ", 100)])
+            self.m_fg_grid.set_rows([])
+            self.m_fg_slots.set_rows([])
             return
         tt = self.system.timetable
         try:
-            if self.mode.get() == "Lớp":
+            if self.m_cbo_mode.get() == "Lớp":
                 headers, rows = tt.weekly_grid(class_id=target_id)
                 slots = tt.of_class(target_id)
             else:
@@ -425,16 +425,16 @@ class TimetableTab(BaseTab):
                 slots = tt.of_teacher(target_id)
         except KindergartenError:
             headers, rows, slots = ["Giờ"], [], []
-        self.grid_table.set_columns([(headers[0], 90)] + [(h, 170) for h in headers[1:]])
-        self.grid_table.set_rows(rows)
+        self.m_fg_grid.set_columns([(headers[0], 90)] + [(h, 170) for h in headers[1:]])
+        self.m_fg_grid.set_rows(rows)
         teacher_name = lambda tid: (self.system.employees.get(tid).full_name  # noqa: E731
                                     if tid and self.system.employees.exists(tid) else "-")
-        self.slot_table.set_rows([[s.id, WEEKDAY_NAMES[s.weekday], s.time_range, s.activity,
+        self.m_fg_slots.set_rows([[s.id, WEEKDAY_NAMES[s.weekday], s.time_range, s.activity,
                                    self.class_name(s.class_id), teacher_name(s.teacher_id)] for s in slots],
                                  [s.id for s in slots])
 
     def add_slot(self) -> None:
-        current = self.target.get().split(" - ")[0] if self.mode.get() == "Lớp" and self.target.get() else None
+        current = self.m_cbo_target.get().split(" - ")[0] if self.m_cbo_mode.get() == "Lớp" and self.m_cbo_target.get() else None
         fields = [Field("class_id", "Lớp", "choice", self.class_options(self.system.classes.all_sorted()), current),
                   Field("weekday", "Thứ", "choice", [(i, WEEKDAY_NAMES[i]) for i in range(6)], 0),
                   Field("start", "Giờ bắt đầu (HH:MM)", default="08:00"),
@@ -452,7 +452,7 @@ class TimetableTab(BaseTab):
         self.form("Thêm tiết học", fields, submit, success=lambda s: f"Đã thêm '{s.activity}' {s.time_label}.")
 
     def remove_slot(self) -> None:
-        slot = self.selected(self.slot_table, self.system.timetable.get, "một tiết học ở bảng chi tiết")
+        slot = self.selected(self.m_fg_slots, self.system.timetable.get, "một tiết học ở bảng chi tiết")
         if slot and self.confirm(f"Xóa tiết '{slot.activity}' {slot.time_label}?"):
             self.guard(self.system.timetable.remove, slot.id)
 
@@ -470,9 +470,9 @@ class AttendanceTab(BaseTab):
         self._shown: tuple[str, str] = ("", "")
         bar = self.bar()
         ttk.Label(bar, text="Lớp:").pack(side="left")
-        self.class_box = ttk.Combobox(bar, state="readonly", width=30)
-        self.class_box.pack(side="left", padx=(4, 12))
-        self.class_box.bind("<<ComboboxSelected>>", lambda _e: self._switch())
+        self.m_cbo_class = ttk.Combobox(bar, state="readonly", width=30)
+        self.m_cbo_class.pack(side="left", padx=(4, 12))
+        self.m_cbo_class.bind("<<ComboboxSelected>>", lambda _e: self._switch())
         ttk.Label(bar, text="Ngày:").pack(side="left")
         # U12: chuyển ngày bằng nút, tự tải danh sách khi đổi lớp / ngày (không cần bấm "Tải danh sách")
         ttk.Button(bar, text="◀", width=3, command=lambda: self._shift(-1)).pack(side="left", padx=(4, 0))
@@ -483,21 +483,21 @@ class AttendanceTab(BaseTab):
         entry.bind("<FocusOut>", lambda _e: self._switch())
         ttk.Button(bar, text="▶", width=3, command=lambda: self._shift(1)).pack(side="left")
         ttk.Button(bar, text="Hôm nay", command=self._today).pack(side="left", padx=(4, 12))
-        self.info_label = ttk.Label(bar, style="Muted.TLabel")
-        self.info_label.pack(side="left", padx=8)
-        self.table = DataTable(self, [("STT", 45, "center"), ("Mã", 60), ("Họ tên", 190), ("Trạng thái", 130),
+        self.m_lbl_info = ttk.Label(bar, style="Muted.TLabel")
+        self.m_lbl_info.pack(side="left", padx=8)
+        self.m_fg_list = DataTable(self, [("STT", 45, "center"), ("Mã", 60), ("Họ tên", 190), ("Trạng thái", 130),
                                       ("Ghi chú", 300)], checkable=True)
-        self.table.pack(fill="both", expand=True)
-        self.table.on_double_click(self.cycle_status)
+        self.m_fg_list.pack(fill="both", expand=True)
+        self.m_fg_list.on_double_click(self.cycle_status)
         for key, status in (("c", AttendanceStatus.PRESENT), ("p", AttendanceStatus.EXCUSED),
                             ("k", AttendanceStatus.UNEXCUSED)):
-            self.table.tree.bind(f"<KeyPress-{key}>", lambda _e, s=status: self.set_status(s))
+            self.m_fg_list.tree.bind(f"<KeyPress-{key}>", lambda _e, s=status: self.set_status(s))
         marks = self.bar(pady=(8, 0))
         ttk.Label(marks, text="Trẻ đang chọn (phím C/P/K, nháy đúp để đổi vòng):").pack(side="left", padx=(0, 6))
         self.button(marks, "Có mặt", lambda: self.set_status(AttendanceStatus.PRESENT))
         self.button(marks, "Nghỉ có phép", lambda: self.set_status(AttendanceStatus.EXCUSED))
         self.button(marks, "Nghỉ không phép", lambda: self.set_status(AttendanceStatus.UNEXCUSED))
-        self.save_button = self.button(marks, "LƯU ĐIỂM DANH", self.save_attendance, style="Accent.TButton",
+        self.m_btn_save = self.button(marks, "LƯU ĐIỂM DANH", self.save_attendance, style="Accent.TButton",
                                        side="right")
         more = self.bar(pady=(6, 0))
         self.button(more, "Ghi đơn xin nghỉ", self.leave_request)
@@ -539,6 +539,17 @@ class AttendanceTab(BaseTab):
     def has_unsaved(self) -> bool:
         return self.dirty
 
+    def unsaved_label(self) -> str:
+        if self.loaded is None:
+            return "Điểm danh chưa lưu"
+        return f"Điểm danh lớp {self.class_name(self.loaded[0])} ngày {format_date(self.loaded[1])}"
+
+    def save_unsaved(self) -> bool:
+        return self.save_attendance(show_message=False)
+
+    def discard_unsaved(self) -> None:
+        self.dirty = False
+
     def confirm_discard(self) -> bool:
         """U15: còn điểm danh chưa lưu -> hỏi Lưu / Bỏ / Hủy. Trả về False nếu người dùng chọn Hủy."""
         if not self.dirty or self.loaded is None:
@@ -555,20 +566,20 @@ class AttendanceTab(BaseTab):
         return True
 
     def _switch(self) -> None:
-        current = (self.class_box.get(), self.day_var.get().strip())
+        current = (self.m_cbo_class.get(), self.day_var.get().strip())
         if current == self._shown:
             return
         if not self.confirm_discard():
-            self.class_box.set(self._shown[0])   # quay lại lựa chọn cũ
+            self.m_cbo_class.set(self._shown[0])   # quay lại lựa chọn cũ
             self.day_var.set(self._shown[1])
             return
         self.load_list(quiet=False)
 
     def refresh(self) -> None:
         options = [f"{c.id} - {c.name}" for c in self.system.classes_for(self.user)]
-        self.class_box["values"] = options
-        if self.class_box.get() not in options:
-            self.class_box.set(options[0] if options else "")
+        self.m_cbo_class["values"] = options
+        if self.m_cbo_class.get() not in options:
+            self.m_cbo_class.set(options[0] if options else "")
         if not self.dirty:
             self.load_list(quiet=True)
 
@@ -576,13 +587,13 @@ class AttendanceTab(BaseTab):
         self.loaded = None
         self.statuses = {}
         self.dirty = False
-        self.table.set_rows([])
-        self.info_label.configure(text=message)
-        self.save_button.state(["disabled"])
+        self.m_fg_list.set_rows([])
+        self.m_lbl_info.configure(text=message)
+        self.m_btn_save.state(["disabled"])
 
     def load_list(self, quiet: bool = False) -> None:
-        self._shown = (self.class_box.get(), self.day_var.get().strip())
-        class_id = self.class_box.get().split(" - ")[0] if self.class_box.get() else None
+        self._shown = (self.m_cbo_class.get(), self.day_var.get().strip())
+        class_id = self.m_cbo_class.get().split(" - ")[0] if self.m_cbo_class.get() else None
         if not class_id:
             self._clear("Bạn chưa được phân công lớp nào.")
             return
@@ -601,9 +612,9 @@ class AttendanceTab(BaseTab):
         self.loaded = (class_id, day)
         self.dirty = False
         if self.can(P.TAKE_ATTENDANCE):
-            self.save_button.state(["!disabled"])
+            self.m_btn_save.state(["!disabled"])
         taken = self.system.attendance.is_taken(class_id, day)
-        self.info_label.configure(text=f"{weekday_name(day)} {format_date(day)} - "
+        self.m_lbl_info.configure(text=f"{weekday_name(day)} {format_date(day)} - "
                                  + ("ĐÃ điểm danh (đang xem/sửa)" if taken else "chưa điểm danh"))
         self._render()
 
@@ -618,13 +629,13 @@ class AttendanceTab(BaseTab):
             present += status is AttendanceStatus.PRESENT
             rows.append([index, child.id, child.full_name, status.value, note])
             tags.append({AttendanceStatus.UNEXCUSED: "warn", AttendanceStatus.EXCUSED: "muted"}.get(status))
-        self.table.set_rows(rows, [c.id for c in children], tags)
-        base = self.info_label.cget("text").split("  |  ")[0]
-        self.info_label.configure(text=f"{base}  |  có mặt {present}/{len(children)}"
+        self.m_fg_list.set_rows(rows, [c.id for c in children], tags)
+        base = self.m_lbl_info.cget("text").split("  |  ")[0]
+        self.m_lbl_info.configure(text=f"{base}  |  có mặt {present}/{len(children)}"
                                        + ("  •  CHƯA LƯU" if self.dirty else ""))
 
     def set_status(self, status: AttendanceStatus, ask_note: bool = True) -> None:
-        ids = [i for i in self.table.checked_ids() if i in self.statuses]
+        ids = [i for i in self.m_fg_list.checked_ids() if i in self.statuses]
         if not ids:
             messagebox.showwarning("Chưa chọn", "Hãy tích ô ☐ đầu dòng một hoặc nhiều trẻ.", parent=self)
             return
@@ -634,12 +645,12 @@ class AttendanceTab(BaseTab):
         for child_id in ids:
             self.statuses[child_id] = (status, note)
         self.dirty = True
-        self.table.set_checked([])
+        self.m_fg_list.set_checked([])
         self._render()
 
     def cycle_status(self) -> None:
         """U12: nháy đúp đổi vòng Có mặt -> Có phép -> Không phép."""
-        child_id = self.table.selected_id()
+        child_id = self.m_fg_list.selected_id()
         if child_id not in self.statuses:
             return
         status, note = self.statuses[child_id]
@@ -669,7 +680,7 @@ class AttendanceTab(BaseTab):
 
     # ------------------------------------------------------------------ đơn xin nghỉ
     def leave_request(self) -> None:
-        fields = [Field("child_id", "Trẻ", "choice", self.child_options(), self.table.selected_id()),
+        fields = [Field("child_id", "Trẻ", "choice", self.child_options(), self.m_fg_list.selected_id()),
                   Field("from_date", "Nghỉ từ ngày", "date", default=date.today()),
                   Field("to_date", "Đến ngày", "date", default=date.today()),
                   Field("reason", "Lý do"), Field("submitted_by", "Người gửi đơn", required=False)]
@@ -748,7 +759,7 @@ class AttendanceTab(BaseTab):
     # ------------------------------------------------------------------ đón trẻ
     def verify_pickup(self) -> None:
         """L06/U04: chọn người đón từ danh sách đăng ký thay vì gõ tự do; chỉ giao khi trẻ đã điểm danh có mặt."""
-        selected = self.table.selected_id()
+        selected = self.m_fg_list.selected_id()
         if selected is None:
             result = self.form("Xác nhận người đón trẻ", [Field("child_id", "Trẻ", "choice", self.child_options())],
                                lambda v: v["child_id"], submit_text="Tiếp tục", save=False)

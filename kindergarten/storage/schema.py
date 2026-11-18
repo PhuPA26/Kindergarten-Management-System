@@ -375,6 +375,29 @@ TABLE_LIST: list[Table] = [
         fks=[(("MA_TRE",), "MN_DM_TRE", ("MA_TRE",), "CASCADE"),
              (("MA_DON_NGHI",), "MN_NV_DON_XIN_NGHI", ("MA_DON",), "SET NULL")],
         indexes=[("MA_LOP",), ("NGAY_AP_DUNG",)]),
+    Table("MN_NV_SO_TIET_DAY", "NV", "Sổ tiết dạy bộ môn - giáo viên bộ môn ghi mỗi tiết đã dạy ở một lớp", [
+        C("MA_TIET_DAY", MA, "Mã (TDxxx)", False),
+        C("NGAY_DAY", NGAY, "Ngày dạy", False),
+        C("MA_LOP", MA, "Lớp được dạy", False),
+        C("MA_GIAO_VIEN", MA, "Giáo viên bộ môn", False),
+        C("MON_HOC", "VARCHAR(100)", "Môn học / hoạt động (Âm nhạc, Tiếng Anh...)", False),
+        C("MA_TIET", MA, "Tiết trong thời khóa biểu (lưu lại, không ràng buộc)"),
+        C("GIO_DAY", "VARCHAR(20)", "Giờ dạy (VD: 09:00 - 09:35)"),
+        C("NOI_DUNG", DAI, "Nội dung bài dạy", False),
+        C("DANH_GIA_CHUNG", "VARCHAR(30)", "Đánh giá chung cả lớp (Tốt / Khá / Trung bình / Cần cố gắng)"),
+        C("GHI_CHU", DAI, "Ghi chú"),
+        C("NGUOI_GHI", TEN, "Người ghi sổ"),
+        C("CAP_NHAT_LUC", THOI_DIEM, "Cập nhật lúc")], ("MA_TIET_DAY",),
+        fks=[(("MA_LOP",), "MN_DM_LOP_HOC", ("MA_LOP",), "CASCADE"),
+             (("MA_GIAO_VIEN",), "MN_DM_NHAN_SU", ("MA_NHAN_SU",), "CASCADE")],
+        uniques=[("NGAY_DAY", "MA_LOP", "MA_GIAO_VIEN", "MON_HOC")], indexes=[("MA_GIAO_VIEN", "NGAY_DAY")]),
+    Table("MN_NV_TIET_DAY_NHAN_XET", "NV", "Nhận xét từng trẻ trong tiết dạy bộ môn", [
+        C("MA_TIET_DAY", MA, "Tiết dạy", False),
+        C("MA_TRE", MA, "Trẻ", False),
+        C("MUC_DANH_GIA", "VARCHAR(30)", "Nổi bật / Đạt / Cần hỗ trợ"),
+        C("NHAN_XET", CHU, "Nhận xét của giáo viên bộ môn")], ("MA_TIET_DAY", "MA_TRE"),
+        fks=[(("MA_TIET_DAY",), "MN_NV_SO_TIET_DAY", ("MA_TIET_DAY",), "CASCADE"),
+             (("MA_TRE",), "MN_DM_TRE", ("MA_TRE",), "CASCADE")]),
     Table("MN_NV_BAO_CAO", "NV", "Báo cáo các bộ phận gửi Ban giám hiệu và báo cáo toàn trường", [
         C("MA_BAO_CAO", MA, "Mã báo cáo (BCxxx)", False),
         C("LOAI_BAO_CAO", "VARCHAR(30)", "Loại (end_of_day, revenue, school_day...)", False),
@@ -531,6 +554,7 @@ ENTITIES: list[Entity] = [   # thứ tự = thứ tự ghi (bảng được tham
     Entity("menus", "MN_NV_THUC_DON", ("MN_NV_THUC_DON_CHI_TIET",)),
     Entity("daily_logs", "MN_NV_NHAT_KY_TRE", ("MN_NV_NHAT_KY_BUA_AN",)),
     Entity("messages", "MN_NV_TIN_NHAN"),
+    Entity("lesson_logs", "MN_NV_SO_TIET_DAY", ("MN_NV_TIET_DAY_NHAN_XET",)),
     Entity("reports", "MN_NV_BAO_CAO", ("MN_NV_BAO_CAO_NGUON", "MN_NV_BAO_CAO_LICH_SU")),
     Entity("bang_luong", "MN_NV_BANG_LUONG", ("MN_NV_BANG_LUONG_CHI_TIET",)),
 ]
@@ -736,11 +760,21 @@ def _enc_report(d: dict[str, Any]) -> Rowset:
                                   for i, h in enumerate(d.get("history") or [], 1)]}
 
 
+def _enc_lesson(d: dict[str, Any]) -> Rowset:
+    return {"MN_NV_SO_TIET_DAY": [(
+        d["id"], d["date"], d["class_id"], d["teacher_id"], d["subject"], _s(d.get("slot_id")),
+        _txt(d.get("time_text")), d["content"], _txt(d.get("rating")), _txt(d.get("note")),
+        _txt(d.get("created_by")), _dt_in(d.get("updated_at")))],
+        "MN_NV_TIET_DAY_NHAN_XET": [(d["id"], child_id, _txt(item.get("level")), _txt(item.get("comment")))
+                                    for child_id, item in sorted((d.get("child_notes") or {}).items())]}
+
+
 ENCODERS: dict[str, Callable[[dict[str, Any]], Rowset]] = {
     "users": _enc_user, "employees": _enc_employee, "children": _enc_child, "parents": _enc_parent,
     "classes": _enc_class, "timetable": _enc_slot, "health_records": _enc_health, "allergies": _enc_allergy,
     "attendance": _enc_attendance, "leave_requests": _enc_leave, "invoices": _enc_invoice, "meals": _enc_meal,
     "menus": _enc_menu, "daily_logs": _enc_daily, "messages": _enc_message, "reports": _enc_report,
+    "lesson_logs": _enc_lesson,
 }
 
 
@@ -959,6 +993,15 @@ def _decode(tables: dict[str, list[dict[str, Any]]]) -> dict[str, Any]:
         "replied_at": _dt_out(r["TRA_LOI_LUC"]), "created_at": _dt_out(r["GUI_LUC"]),
         "done_at": _dt_out(r["THUC_HIEN_LUC"]), "leave_request_id": r["MA_DON_NGHI"] or ""}
         for r in tables.get("MN_NV_TIN_NHAN", [])]
+    notes_of = by("MN_NV_TIET_DAY_NHAN_XET", "MA_TIET_DAY")
+    payload["lesson_logs"] = [{
+        "type": "LessonLog", "id": r["MA_TIET_DAY"], "date": _date_out(r["NGAY_DAY"]), "class_id": r["MA_LOP"],
+        "teacher_id": r["MA_GIAO_VIEN"], "subject": r["MON_HOC"], "slot_id": r["MA_TIET"],
+        "time_text": r["GIO_DAY"] or "", "content": r["NOI_DUNG"], "rating": r["DANH_GIA_CHUNG"] or "",
+        "note": r["GHI_CHU"] or "", "created_by": r["NGUOI_GHI"] or "", "updated_at": _dt_out(r["CAP_NHAT_LUC"]),
+        "child_notes": {x["MA_TRE"]: {"level": x["MUC_DANH_GIA"] or "", "comment": x["NHAN_XET"] or ""}
+                        for x in notes_of.get(r["MA_TIET_DAY"], [])}}
+        for r in tables.get("MN_NV_SO_TIET_DAY", [])]
     sources_of = by("MN_NV_BAO_CAO_NGUON", "MA_BAO_CAO")
     history_of = by("MN_NV_BAO_CAO_LICH_SU", "MA_BAO_CAO")
     reports = []

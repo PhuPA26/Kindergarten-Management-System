@@ -30,25 +30,25 @@ class ParentTab(BaseTab):
     def child_bar(self) -> ttk.Frame:
         bar = self.bar()
         ttk.Label(bar, text="Con:").pack(side="left")
-        self.child_box = ttk.Combobox(bar, state="readonly", width=40)
-        self.child_box.pack(side="left", padx=4)
-        self.child_box.bind("<<ComboboxSelected>>", self._on_child)
+        self.m_cbo_child = ttk.Combobox(bar, state="readonly", width=40)
+        self.m_cbo_child.pack(side="left", padx=4)
+        self.m_cbo_child.bind("<<ComboboxSelected>>", self._on_child)
         return bar
 
     def _on_child(self, _event: Any = None) -> None:
-        self.app.parent_child_id = self.child_box.get().split(" - ")[0]
+        self.app.parent_child_id = self.m_cbo_child.get().split(" - ")[0]
         self.refresh()
 
     def child(self) -> Child | None:
         """Trẻ đang xem (chọn chung cho mọi tab của phụ huynh)."""
         kids = self.system.children_for(self.user)
         options = [f"{c.id} - {c.full_name} ({self.class_name(c.class_id)})" for c in kids]
-        self.child_box["values"] = options
+        self.m_cbo_child["values"] = options
         current = getattr(self.app, "parent_child_id", None)
         chosen = next((c for c in kids if c.id == current), kids[0] if kids else None)
         if chosen is not None:
             self.app.parent_child_id = chosen.id
-            self.child_box.set(next(o for o in options if o.startswith(chosen.id + " ")))
+            self.m_cbo_child.set(next(o for o in options if o.startswith(chosen.id + " ")))
         return chosen
 
     def send_message(self, kind: MessageKind) -> None:
@@ -82,9 +82,9 @@ class ParentTodayTab(ParentTab):
     def build(self) -> None:
         bar = self.child_bar()
         self.button(bar, "Làm mới", self.refresh, side="right")
-        self.text = ReportView(self, height=22)
-        self.text.configure(highlightthickness=1, highlightbackground=COLORS["border"])
-        self.text.pack(fill="both", expand=True)
+        self.m_txt_content = ReportView(self, height=22)
+        self.m_txt_content.configure(highlightthickness=1, highlightbackground=COLORS["border"])
+        self.m_txt_content.pack(fill="both", expand=True)
         actions = self.bar(pady=(8, 0))
         self.button(actions, "Gửi lời nhắn cho cô", lambda: self.send_message(MessageKind.NOTE), style="Accent.TButton")
         self.button(actions, "Dặn uống thuốc", lambda: self.send_message(MessageKind.MEDICINE))
@@ -135,7 +135,7 @@ class ParentTodayTab(ParentTab):
             lines += ["", "④ TRAO ĐỔI VỚI CÔ HÔM NAY:"]
             lines += [f"   [{m.status.value}] {m.detail_text()}" + (f"\n      → Cô trả lời: {m.reply}" if m.reply else "")
                       for m in messages] or ["   Chưa có."]
-        self.text.render_plain("\n".join(lines), top="h2")
+        self.m_txt_content.render_plain("\n".join(lines), top="h2")
 
     def reply_today(self) -> None:
         child = self.child()
@@ -155,10 +155,10 @@ class ParentDiaryTab(ParentTab):
 
     def build(self) -> None:
         self.child_bar()
-        self.table = DataTable(self, [("Ngày", 95), ("Ăn uống", 260), ("Giấc ngủ", 140), ("Tâm trạng", 90),
+        self.m_fg_list = DataTable(self, [("Ngày", 95), ("Ăn uống", 260), ("Giấc ngủ", 140), ("Tâm trạng", 90),
                                       ("Hoạt động / lời cô", 300), ("Phản hồi của tôi", 220)])
-        self.table.pack(fill="both", expand=True)
-        self.table.on_double_click(self.view)
+        self.m_fg_list.pack(fill="both", expand=True)
+        self.m_fg_list.on_double_click(self.view)
         actions = self.bar(pady=(8, 0))
         self.button(actions, "Xem chi tiết", self.view)
         self.button(actions, "Phản hồi / cập nhật tình hình", self.reply, style="Accent.TButton")
@@ -166,13 +166,13 @@ class ParentDiaryTab(ParentTab):
     def refresh(self) -> None:
         child = self.child()
         logs = self.system.daily.logs_for_parent(child.id) if child else []
-        self.table.set_rows([[format_date(log.date), log.meals_text(), log.nap_text(), log.mood or "-",
+        self.m_fg_list.set_rows([[format_date(log.date), log.meals_text(), log.nap_text(), log.mood or "-",
                               " / ".join(x for x in (log.activities, log.teacher_note, log.health_note) if x),
                               log.parent_reply] for log in logs], [log.id for log in logs],
                             [None if log.parent_seen_at else "warn" for log in logs])
 
     def view(self) -> None:
-        log_id = self.table.selected_id()
+        log_id = self.m_fg_list.selected_id()
         if log_id:
             log = self.system.daily.parent_open_log(log_id)
             self.app.save()
@@ -180,7 +180,7 @@ class ParentDiaryTab(ParentTab):
             self.refresh()
 
     def reply(self) -> None:
-        log_id = self.table.selected_id()
+        log_id = self.m_fg_list.selected_id()
         if not log_id:
             messagebox.showwarning("Chưa chọn", "Hãy chọn một ngày trong bảng.", parent=self)
             return
@@ -196,9 +196,9 @@ class ParentMessagesTab(ParentTab):
 
     def build(self) -> None:
         self.child_bar()
-        self.table = DataTable(self, [("Gửi lúc", 110), ("Loại", 110), ("Nội dung", 360), ("Người gửi", 150),
+        self.m_fg_list = DataTable(self, [("Gửi lúc", 110), ("Loại", 110), ("Nội dung", 360), ("Người gửi", 150),
                                       ("Trạng thái", 100), ("Cô trả lời", 260)])
-        self.table.pack(fill="both", expand=True)
+        self.m_fg_list.pack(fill="both", expand=True)
         actions = self.bar(pady=(8, 0))
         self.button(actions, "Gửi lời nhắn", lambda: self.send_message(MessageKind.NOTE), style="Accent.TButton")
         self.button(actions, "Dặn uống thuốc", lambda: self.send_message(MessageKind.MEDICINE))
@@ -207,7 +207,7 @@ class ParentMessagesTab(ParentTab):
     def refresh(self) -> None:
         child = self.child()
         items = self.system.daily.messages_for_parent(child.id) if child else []
-        self.table.set_rows([[m.created_at.replace("T", " ")[5:], m.kind.value, m.detail_text(), m.sender,
+        self.m_fg_list.set_rows([[m.created_at.replace("T", " ")[5:], m.kind.value, m.detail_text(), m.sender,
                               m.status.value, m.reply] for m in items], [m.id for m in items],
                             ["ok" if m.status.value == "Đã thực hiện" else None for m in items])
 
@@ -222,11 +222,11 @@ class ParentMenuTab(ParentTab):
         self.button(bar, "Tuần sau ▶", lambda: self._shift(1), side="right")
         self.button(bar, "Tuần này", lambda: self._shift(None), side="right")
         self.button(bar, "◀ Tuần trước", lambda: self._shift(-1), side="right")
-        self.table = DataTable(self, [("Thứ", 55), ("Ngày", 90), ("Bữa sáng", 170), ("Bữa trưa", 380),
+        self.m_fg_list = DataTable(self, [("Thứ", 55), ("Ngày", 90), ("Bữa sáng", 170), ("Bữa trưa", 380),
                                       ("Bữa xế", 150), ("Năng lượng", 90, "e")], height=7)
-        self.table.pack(fill="x")
-        self.notes = ttk.Label(self, style="Muted.TLabel", justify="left")
-        self.notes.pack(anchor="w", pady=8)
+        self.m_fg_list.pack(fill="x")
+        self.m_lbl_notes = ttk.Label(self, style="Muted.TLabel", justify="left")
+        self.m_lbl_notes.pack(anchor="w", pady=8)
 
     def _shift(self, step: int | None) -> None:
         self.offset = 0 if step is None else self.offset + step
@@ -236,13 +236,13 @@ class ParentMenuTab(ParentTab):
         child = self.child()
         start = date.today() - timedelta(days=date.today().weekday()) + timedelta(days=7 * self.offset)
         _headers, rows = self.system.menus.week_table(start)
-        self.table.set_rows(rows)
+        self.m_fg_list.set_rows(rows)
         notes = []
         if child is not None:
             warnings = [w for w in self.system.menus.week_allergy_warnings(start) if w.child.id == child.id]
             notes = [f"⚠ {format_date(w.menu_date)} {w.meal.name}: có '{w.ingredient}' - con dị ứng "
                      f"{w.allergy.allergen} (nhà trường sẽ thay món cho con)" for w in warnings]
-        self.notes.configure(text="\n".join(notes) or "Thực đơn tuần này không có món chứa chất con bị dị ứng.")
+        self.m_lbl_notes.configure(text="\n".join(notes) or "Thực đơn tuần này không có món chứa chất con bị dị ứng.")
 
 
 # =============================================================================
@@ -252,18 +252,18 @@ class ParentFeesTab(ParentTab):
     def build(self) -> None:
         self.child_bar()
         ttk.Label(self, text="Hóa đơn học phí", style="Section.TLabel").pack(anchor="w")
-        self.invoices = DataTable(self, [("Mã HĐ", 70), ("Kỳ", 80), ("Phải nộp", 110, "e"), ("Đã nộp", 110, "e"),
+        self.m_fg_invoices = DataTable(self, [("Mã HĐ", 70), ("Kỳ", 80), ("Phải nộp", 110, "e"), ("Đã nộp", 110, "e"),
                                          ("Còn nợ", 110, "e"), ("Trạng thái", 200), ("Hạn nộp", 90)], height=6)
-        self.invoices.pack(fill="x")
-        self.invoices.on_double_click(self.detail)
+        self.m_fg_invoices.pack(fill="x")
+        self.m_fg_invoices.on_double_click(self.detail)
         bar = self.bar(pady=(6, 10))
         self.button(bar, "Xem chi tiết hóa đơn", self.detail)
-        self.debt = ttk.Label(bar, style="Muted.TLabel")
-        self.debt.pack(side="right")
+        self.m_lbl_debt = ttk.Label(bar, style="Muted.TLabel")
+        self.m_lbl_debt.pack(side="right")
         ttk.Label(self, text="Dịch vụ tự chọn của nhà trường", style="Section.TLabel").pack(anchor="w")
-        self.services = DataTable(self, [("Dịch vụ", 260), ("Giá / tháng", 120, "e"), ("Con đã đăng ký", 120, "center")],
+        self.m_fg_services = DataTable(self, [("Dịch vụ", 260), ("Giá / tháng", 120, "e"), ("Con đã đăng ký", 120, "center")],
                                   height=6)
-        self.services.pack(fill="x")
+        self.m_fg_services.pack(fill="x")
         bar = self.bar(pady=(6, 0))
         self.button(bar, "Đăng ký dịch vụ cho con", lambda: self.toggle(True), style="Accent.TButton")
         self.button(bar, "Hủy dịch vụ", lambda: self.toggle(False))
@@ -274,22 +274,22 @@ class ParentFeesTab(ParentTab):
         if child is None:
             return
         invoices = self.system.invoices.invoices_of_child(child.id)
-        self.invoices.set_rows([[i.id, i.period_label, format_vnd(i.total), format_vnd(i.paid_amount),
+        self.m_fg_invoices.set_rows([[i.id, i.period_label, format_vnd(i.total), format_vnd(i.paid_amount),
                                  format_vnd(i.balance), i.status_text(), format_date(i.due_date)] for i in invoices],
                                [i.id for i in invoices], ["warn" if i.is_overdue() else None for i in invoices])
-        self.debt.configure(text=f"Tổng còn nợ: {format_vnd(sum(i.balance for i in invoices))}")
+        self.m_lbl_debt.configure(text=f"Tổng còn nợ: {format_vnd(sum(i.balance for i in invoices))}")
         catalog = self.system.service_catalog()
-        self.services.set_rows([[name, format_vnd(price), "✔" if name in child.extra_services else ""]
+        self.m_fg_services.set_rows([[name, format_vnd(price), "✔" if name in child.extra_services else ""]
                                 for name, price, _count in catalog], [name for name, _p, _c in catalog])
 
     def detail(self) -> None:
-        invoice = self.selected(self.invoices, self.system.invoices.get, "một hóa đơn")
+        invoice = self.selected(self.m_fg_invoices, self.system.invoices.get, "một hóa đơn")
         if invoice is not None:
             self.show_text(f"Hóa đơn {invoice.id}", invoice.detail_text())
 
     def toggle(self, register: bool) -> None:
         child = self.child()
-        service = self.services.selected_id()
+        service = self.m_fg_services.selected_id()
         if child is None or not service:
             messagebox.showwarning("Chưa chọn", "Hãy chọn một dịch vụ trong bảng.", parent=self)
             return
@@ -307,9 +307,9 @@ class ParentHealthTab(ParentTab):
 
     def build(self) -> None:
         self.child_bar()
-        self.text = ReportView(self)
-        self.text.configure(highlightthickness=1, highlightbackground=COLORS["border"])
-        self.text.pack(fill="both", expand=True)
+        self.m_txt_content = ReportView(self)
+        self.m_txt_content.configure(highlightthickness=1, highlightbackground=COLORS["border"])
+        self.m_txt_content.pack(fill="both", expand=True)
 
     def refresh(self) -> None:
         child = self.child()
@@ -331,4 +331,4 @@ class ParentHealthTab(ParentTab):
                 parts.append(f"\nChuyên cần tháng {month_label(today.month, today.year)}: có mặt {x['present']}, "
                              f"nghỉ có phép {x['excused']}, nghỉ không phép {x['unexcused']} - tỷ lệ "
                              f"{format_percent(x['rate'])}")
-        self.text.render_plain("\n".join(parts), top="h2")
+        self.m_txt_content.render_plain("\n".join(parts), top="h2")

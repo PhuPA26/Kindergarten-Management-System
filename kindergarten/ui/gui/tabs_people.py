@@ -32,9 +32,9 @@ class DashboardTab(BaseTab):
         self.button(bar, "Làm mới", self.refresh, side="right")
         self.cards = ttk.Frame(self)
         self.cards.pack(fill="x", pady=(0, 10))
-        self.text = ReportView(self, height=18)
-        self.text.configure(highlightthickness=1, highlightbackground=COLORS["border"])
-        self.text.pack(fill="both", expand=True)
+        self.m_txt_content = ReportView(self, height=18)
+        self.m_txt_content.configure(highlightthickness=1, highlightbackground=COLORS["border"])
+        self.m_txt_content.pack(fill="both", expand=True)
 
     def refresh(self) -> None:
         finance = self.can(P.VIEW_FINANCE_REPORTS)
@@ -60,7 +60,7 @@ class DashboardTab(BaseTab):
             stat_card(self.cards, *spec).grid(row=row, column=column, padx=(0, 8), pady=(0, 8), sticky="nsew")
         for column in range(per_row):
             self.cards.columnconfigure(column, weight=1, uniform="cards")
-        self.text.render_plain(dashboard.render_text(finance, stats=st), top="h2")
+        self.m_txt_content.render_plain(dashboard.render_text(finance, stats=st), top="h2")
 
 
 # =============================================================================
@@ -73,8 +73,8 @@ class PickupDialog(tk.Toplevel):
         self.title(f"Người đón hộ - {child.full_name}")
         self.transient(tab.winfo_toplevel())
         self.geometry(f"{px(640)}x{px(320)}")
-        self.table = DataTable(self, [("Họ tên", 170), ("Quan hệ", 110), ("SĐT", 110), ("CCCD", 120)], height=8)
-        self.table.pack(fill="both", expand=True, padx=8, pady=8)
+        self.m_fg_list = DataTable(self, [("Họ tên", 170), ("Quan hệ", 110), ("SĐT", 110), ("CCCD", 120)], height=8)
+        self.m_fg_list.pack(fill="both", expand=True, padx=8, pady=8)
         bar = ttk.Frame(self, padding=(8, 0, 8, 8))
         bar.pack(fill="x")
         ttk.Button(bar, text="Thêm", command=self.add).pack(side="left")
@@ -85,7 +85,7 @@ class PickupDialog(tk.Toplevel):
 
     def reload(self) -> None:
         persons = self.child.pickup_persons
-        self.table.set_rows([[p.full_name, p.relationship, p.phone, p.id_card or "-"] for p in persons],
+        self.m_fg_list.set_rows([[p.full_name, p.relationship, p.phone, p.id_card or "-"] for p in persons],
                             [p.full_name for p in persons])
 
     def add(self) -> None:
@@ -95,7 +95,7 @@ class PickupDialog(tk.Toplevel):
         self.reload()
 
     def remove(self) -> None:
-        name = self.table.selected_id()
+        name = self.m_fg_list.selected_id()
         if name and messagebox.askyesno("Xác nhận", f"Xóa {name} khỏi danh sách người đón hộ?", parent=self):
             self.tab.guard(self.child.remove_pickup_person, name)
             self.reload()
@@ -114,20 +114,20 @@ class ChildrenTab(BaseTab):
         entry.bind("<KeyRelease>", self._on_key)
         self._pending: str | None = None
         ttk.Label(bar, text="Lớp:").pack(side="left")
-        self.class_filter = ttk.Combobox(bar, state="readonly", width=26)
-        self.class_filter.pack(side="left", padx=(4, 12))
-        self.class_filter.bind("<<ComboboxSelected>>", lambda _e: self.refresh())
+        self.m_cbo_class = ttk.Combobox(bar, state="readonly", width=26)
+        self.m_cbo_class.pack(side="left", padx=(4, 12))
+        self.m_cbo_class.bind("<<ComboboxSelected>>", lambda _e: self.refresh())
         ttk.Label(bar, text="Tuổi:").pack(side="left")
-        self.age_filter = ttk.Combobox(bar, state="readonly", width=8, values=["Tất cả", "1", "2", "3", "4", "5", "6"])
-        self.age_filter.set("Tất cả")
-        self.age_filter.pack(side="left", padx=(4, 12))
-        self.age_filter.bind("<<ComboboxSelected>>", lambda _e: self.refresh())
-        self.table = DataTable(self, [("Mã", 60), ("Họ tên", 170), ("Giới tính", 70, "center"), ("Ngày sinh", 90),
+        self.m_cbo_age = ttk.Combobox(bar, state="readonly", width=8, values=["Tất cả", "1", "2", "3", "4", "5", "6"])
+        self.m_cbo_age.set("Tất cả")
+        self.m_cbo_age.pack(side="left", padx=(4, 12))
+        self.m_cbo_age.bind("<<ComboboxSelected>>", lambda _e: self.refresh())
+        self.m_fg_list = DataTable(self, [("Mã", 60), ("Họ tên", 170), ("Giới tính", 70, "center"), ("Ngày sinh", 90),
                                       ("Tuổi", 110), ("Lớp", 130), ("Phụ huynh", 260), ("Dị ứng", 120)])
-        self.table.pack(fill="both", expand=True)
-        self.table.on_double_click(self.view_detail)
-        self.count = ttk.Label(bar, style="Muted.TLabel")
-        self.count.pack(side="right")
+        self.m_fg_list.pack(fill="both", expand=True)
+        self.m_fg_list.on_double_click(self.view_detail)
+        self.m_lbl_count = ttk.Label(bar, style="Muted.TLabel")
+        self.m_lbl_count.pack(side="right")
         self.master_bar(self.add_child, self.edit_child, self.delete_child, P.MANAGE_CHILDREN, extras=[
             ("Hồ sơ chi tiết", self.view_detail), ("Người đón hộ", self.manage_pickups, P.MANAGE_CHILDREN),
             ("Liên kết phụ huynh", self.link_parent, P.MANAGE_CHILDREN),
@@ -144,10 +144,10 @@ class ChildrenTab(BaseTab):
         restricted = self.scope_class_ids() is not None
         options = ["Tất cả"] + ([] if restricted else ["Chưa xếp lớp", "Đã nghỉ / ra trường"]) \
             + [f"{c.id} - {c.name}" for c in self.system.classes_for(self.user)]
-        current = self.class_filter.get() or "Tất cả"
-        self.class_filter["values"] = options
-        self.class_filter.set(current if current in options else "Tất cả")
-        key, selection, age = normalize_text(self.keyword.get()), self.class_filter.get(), self.age_filter.get()
+        current = self.m_cbo_class.get() or "Tất cả"
+        self.m_cbo_class["values"] = options
+        self.m_cbo_class.set(current if current in options else "Tất cả")
+        key, selection, age = normalize_text(self.keyword.get()), self.m_cbo_class.get(), self.m_cbo_age.get()
         if selection == "Đã nghỉ / ra trường":
             children = self.system.children.find_inactive()
         else:
@@ -174,11 +174,11 @@ class ChildrenTab(BaseTab):
                          "; ".join(f"{p.relationship} {p.full_name}" for p in parents) or "-",
                          ("⚠ " + ", ".join(a.allergen for a in allergies)) if allergies else ""])
             tags.append("warn" if allergies else (None if c.is_active else "muted"))
-        self.table.set_rows(rows, [c.id for c in shown], tags)
-        self.count.configure(text=f"{len(shown)}/{len(children)} trẻ")
+        self.m_fg_list.set_rows(rows, [c.id for c in shown], tags)
+        self.m_lbl_count.configure(text=f"{len(shown)}/{len(children)} trẻ")
 
     def _selected_child(self) -> Child | None:
-        return self.selected(self.table, self.system.children.get, "một trẻ")
+        return self.selected(self.m_fg_list, self.system.children.get, "một trẻ")
 
     def _fields(self, child: Child | None = None) -> list[Field]:
         services = list(self.system.settings.extra_services)
@@ -317,10 +317,10 @@ class ParentsTab(BaseTab):
         entry.pack(side="left", padx=4)
         entry.bind("<KeyRelease>", self._on_key)
         self._pending: str | None = None
-        self.table = DataTable(self, [("Mã", 60), ("Họ tên", 170), ("Quan hệ", 80), ("SĐT", 100), ("Nghề nghiệp", 130),
+        self.m_fg_list = DataTable(self, [("Mã", 60), ("Họ tên", 170), ("Quan hệ", 80), ("SĐT", 100), ("Nghề nghiệp", 130),
                                       ("Email", 170), ("Các con", 260)])
-        self.table.pack(fill="both", expand=True)
-        self.table.on_double_click(self.view_children)
+        self.m_fg_list.pack(fill="both", expand=True)
+        self.m_fg_list.on_double_click(self.view_children)
         self.master_bar(self.add_parent, self.edit_parent, self.delete_parent, P.MANAGE_CHILDREN,
                         extras=[("Xem các con", self.view_children)])
 
@@ -337,7 +337,7 @@ class ParentsTab(BaseTab):
                    if not key or key in p.search_text or (digits and digits in p.phone)]
         rows = [[p.id, p.full_name, p.relationship, p.phone, p.occupation or "-", p.email or "-",
                  ", ".join(c.full_name for c in self.system.parents.children_of(p.id)) or "-"] for p in parents]
-        self.table.set_rows(rows, [p.id for p in parents])
+        self.m_fg_list.set_rows(rows, [p.id for p in parents])
 
     def _fields(self, parent: Parent | None = None) -> list[Field]:
         fields = [
@@ -376,7 +376,7 @@ class ParentsTab(BaseTab):
         self.form("Thêm phụ huynh", self._fields(), submit, success=lambda p: f"Đã thêm phụ huynh {p}.")
 
     def edit_parent(self) -> None:
-        parent = self.selected(self.table, self.system.parents.get, "một phụ huynh")
+        parent = self.selected(self.m_fg_list, self.system.parents.get, "một phụ huynh")
         if parent is None:
             return
 
@@ -391,7 +391,7 @@ class ParentsTab(BaseTab):
         self.form(f"Sửa {parent.full_name}", self._fields(parent), submit, success="Đã cập nhật phụ huynh.")
 
     def delete_parent(self) -> None:
-        parent = self.selected(self.table, self.system.parents.get, "một phụ huynh")
+        parent = self.selected(self.m_fg_list, self.system.parents.get, "một phụ huynh")
         if not parent or not self.confirm_delete("phụ huynh", [
                 ("Mã phụ huynh", parent.id), ("Họ tên", parent.full_name), ("Quan hệ", parent.relationship),
                 ("Số điện thoại", parent.phone),
@@ -408,7 +408,7 @@ class ParentsTab(BaseTab):
         self.guard(self.system.parents.remove, parent.id, force=force, success="Đã xóa phụ huynh.")
 
     def view_children(self) -> None:
-        parent = self.selected(self.table, self.system.parents.get, "một phụ huynh")
+        parent = self.selected(self.m_fg_list, self.system.parents.get, "một phụ huynh")
         if parent is None:
             return
         children = self.system.parents.children_of(parent.id)
@@ -427,7 +427,7 @@ class HealthTab(BaseTab):
     permission = P.MANAGE_HEALTH
 
     def build(self) -> None:
-        notebook = self.notebook = ttk.Notebook(self)
+        notebook = self.m_tab_health = ttk.Notebook(self)
         notebook.pack(fill="both", expand=True)
         # P05: chỉ nạp lại tab con đang xem
         notebook.bind("<<NotebookTabChanged>>", lambda _e: self.refresh())
@@ -435,19 +435,19 @@ class HealthTab(BaseTab):
         notebook.add(growth, text="Tăng trưởng - dinh dưỡng")
         notebook.add(allergy, text="Dị ứng")
         # ---- tăng trưởng
-        self.growth_table = DataTable(growth, [("Mã", 60), ("Họ tên", 170), ("Lớp", 130), ("Ngày đo", 90),
+        self.m_fg_growth = DataTable(growth, [("Mã", 60), ("Họ tên", 170), ("Lớp", 130), ("Ngày đo", 90),
                                                ("Cao (cm)", 70, "e"), ("Nặng (kg)", 70, "e"), ("BMI", 60, "e"),
                                                ("Đánh giá", 100)])
-        self.growth_table.pack(fill="both", expand=True)
-        self.growth_table.on_double_click(self.history)
+        self.m_fg_growth.pack(fill="both", expand=True)
+        self.m_fg_growth.on_double_click(self.history)
         bar = self.bar(growth, pady=(6, 0))
         self.button(bar, "Nhập kết quả cân đo", self.add_record, style="Accent.TButton")
         self.button(bar, "Lịch sử tăng trưởng", self.history)
         self.button(bar, "Xóa một lần đo", self.delete_record)
         # ---- dị ứng
-        self.allergy_table = DataTable(allergy, [("Mã", 60), ("Trẻ", 170), ("Lớp", 130), ("Chất gây dị ứng", 150),
+        self.m_fg_allergy = DataTable(allergy, [("Mã", 60), ("Trẻ", 170), ("Lớp", 130), ("Chất gây dị ứng", 150),
                                                  ("Mức độ", 90), ("Biểu hiện", 260)])
-        self.allergy_table.pack(fill="both", expand=True)
+        self.m_fg_allergy.pack(fill="both", expand=True)
         bar = self.bar(allergy, pady=(6, 0))
         self.button(bar, "Thêm thông tin dị ứng", self.add_allergy, style="Accent.TButton")
         self.button(bar, "Xóa", self.delete_allergy)
@@ -459,7 +459,7 @@ class HealthTab(BaseTab):
         h, visible = self.system.health, self.system.children_for(self.user)
         allowed = {c.id for c in visible}
         try:
-            current = self.notebook.index("current")
+            current = self.m_tab_health.index("current")
         except tk.TclError:
             current = 0
         if current == 1:
@@ -480,12 +480,12 @@ class HealthTab(BaseTab):
             rows.append([child.id, child.full_name, self.class_name(child.class_id), format_date(record.measure_date),
                          record.height_cm, record.weight_kg, record.bmi_text, status.value])
             tags.append(None if status is NutritionStatus.NORMAL else "warn")
-        self.growth_table.set_rows(rows, [c.id for c in visible], tags)
+        self.m_fg_growth.set_rows(rows, [c.id for c in visible], tags)
 
     def _refresh_allergies(self, allowed: set[str]) -> None:
         h = self.system.health
         allergies = [a for a in h.allergies.sort("child_id") if a.child_id in allowed]
-        self.allergy_table.set_rows(
+        self.m_fg_allergy.set_rows(
             [[a.id, self._child_name(a.child_id), self.class_name(self._child_class(a.child_id)), a.allergen,
               a.severity.value, a.reaction or "-"] for a in allergies],
             [a.id for a in allergies], ["warn" if a.severity is AllergySeverity.SEVERE else None for a in allergies])
@@ -499,7 +499,7 @@ class HealthTab(BaseTab):
         return child.class_id if child else None
 
     def add_record(self) -> None:
-        fields = [Field("child_id", "Trẻ", "choice", self.child_options(), self.growth_table.selected_id()),
+        fields = [Field("child_id", "Trẻ", "choice", self.child_options(), self.m_fg_growth.selected_id()),
                   Field("measure_date", "Ngày đo", "date", default=date.today()),
                   Field("height_cm", "Chiều cao (cm)"), Field("weight_kg", "Cân nặng (kg)"),
                   Field("note", "Ghi chú", required=False)]
@@ -507,7 +507,7 @@ class HealthTab(BaseTab):
                   success=lambda r: f"BMI {r.bmi_text} -> {r.assess().value}.")
 
     def history(self) -> None:
-        child = self.selected(self.growth_table, self.system.children.get, "một trẻ")
+        child = self.selected(self.m_fg_growth, self.system.children.get, "một trẻ")
         if child is None:
             return
         rows = []
@@ -523,7 +523,7 @@ class HealthTab(BaseTab):
 
     def delete_record(self) -> None:
         """U01: xóa lần cân đo nhập nhầm."""
-        child = self.selected(self.growth_table, self.system.children.get, "một trẻ")
+        child = self.selected(self.m_fg_growth, self.system.children.get, "một trẻ")
         if child is None:
             return
         records = self.system.health.records_of(child.id)
@@ -545,6 +545,6 @@ class HealthTab(BaseTab):
                   success="Đã lưu. Thực đơn sẽ tự cảnh báo món có chất này.")
 
     def delete_allergy(self) -> None:
-        allergy = self.selected(self.allergy_table, self.system.health.allergies.get, "một dòng dị ứng")
+        allergy = self.selected(self.m_fg_allergy, self.system.health.allergies.get, "một dòng dị ứng")
         if allergy and self.confirm(f"Xóa dị ứng '{allergy.allergen}' của {self._child_name(allergy.child_id)}?"):
             self.guard(self.system.health.remove_allergy, allergy.id)

@@ -24,13 +24,18 @@ def _named_font(name: str, size_delta: int = 0, weight: str = "normal") -> None:
     """Tạo / cập nhật phông có tên - đổi cỡ chữ (U19) thì mọi nơi dùng phông này đổi theo."""
     options = {"family": FONTS["ui"], "size": FONTS["size"] + size_delta, "weight": weight}
     font = _NAMED_FONTS.get(name)
-    if font is None:
+    if font is not None:
         try:
-            font = tkfont.nametofont(name)
-        except tk.TclError:
-            font = tkfont.Font(name=name, **options)
-        _NAMED_FONTS[name] = font
-    font.configure(**options)
+            font.configure(**options)
+            return
+        except tk.TclError:   # cửa sổ Tk cũ đã đóng (mở lại ứng dụng trong cùng tiến trình) -> tạo lại phông
+            pass
+    try:
+        font = tkfont.nametofont(name)
+        font.configure(**options)
+    except tk.TclError:
+        font = tkfont.Font(name=name, **options)
+    _NAMED_FONTS[name] = font
 
 
 def apply_theme(root: tk.Misc) -> ttk.Style:
@@ -139,6 +144,11 @@ def apply_theme(root: tk.Misc) -> ttk.Style:
         style.map(widget, background=[("active", c["card"])],
                   indicatorbackground=[("selected", c["primary"]), ("active", c["primary_soft"])],
                   upperbordercolor=[("selected", c["primary"])], lowerbordercolor=[("selected", c["primary"])])
+    # nút tròn: nền trắng + chấm xanh ở giữa khi được chọn (nền xanh kín bị vẽ thành vòng rỗng, khó nhận ra)
+    style.map("TRadiobutton", background=[("active", c["card"])],
+              indicatorbackground=[("active", c["primary_soft"]), ("selected", "white")],
+              indicatorforeground=[("selected", c["primary"])],
+              upperbordercolor=[("selected", c["primary"])], lowerbordercolor=[("selected", c["primary"])])
 
     # ---- bảng dữ liệu
     style.configure("Treeview", background="white", fieldbackground="white", foreground=c["text"],
@@ -228,40 +238,103 @@ def avatar(master: tk.Misc, name: str, size: int = 36, color: str | None = None,
 # =============================================================================
 # Menu bên trái
 # =============================================================================
+class RoundPanel(tk.Canvas):
+    """Khung bo góc tự giãn theo nội dung: vẽ hình chữ nhật bo tròn, đặt `inner` (Frame) lên trên.
+    set_fill() đổi màu nền cả khung lẫn các widget bên trong (dùng cho mục menu đang chọn / di chuột)."""
+
+    def __init__(self, master: tk.Misc, fill: str, radius: int = 12, padx: int = 12, pady: int = 10,
+                 outline: str = "") -> None:
+        super().__init__(master, bg=master.cget("bg"), highlightthickness=0, bd=0, height=1)
+        self.fill, self.radius, self.padx, self.pady, self.outline = fill, px(radius), px(padx), px(pady), outline
+        self.inner = tk.Frame(self, bg=fill)
+        self._window = self.create_window(self.padx, self.pady, window=self.inner, anchor="nw")
+        self._shape: int | None = None
+        self.inner.bind("<Configure>", lambda _e: self._layout())
+        self.bind("<Configure>", lambda _e: self._layout())
+
+    def _layout(self) -> None:
+        width = self.winfo_width()
+        height = self.inner.winfo_reqheight() + 2 * self.pady
+        if int(self.cget("height")) != height:
+            self.configure(height=height)
+        if width > 1:
+            self.itemconfigure(self._window, width=max(width - 2 * self.padx, 1))
+        if self._shape is not None:
+            self.delete(self._shape)
+        self._shape = round_rect(self, 1, 1, max(width, 2) - 1, height - 1, self.radius, fill=self.fill,
+                                 outline=self.outline or self.fill)
+        self.tag_lower(self._shape)
+
+    def set_fill(self, color: str, widgets: list[tk.Misc] | None = None) -> None:
+        self.fill = color
+        if self._shape is not None:
+            self.itemconfigure(self._shape, fill=color, outline=self.outline or color)
+        for widget in [self.inner] + list(widgets or []):
+            widget.configure(bg=color)
+
+
+def school_year(today: Any = None) -> str:
+    """Năm học hiện tại (bắt đầu tháng 9): VD 18/11/2026 -> 'Năm học 2026 - 2027'."""
+    from datetime import date
+    today = today or date.today()
+    start = today.year if today.month >= 9 else today.year - 1
+    return f"Năm học {start} - {start + 1}"
+
+
 class Sidebar(tk.Frame):
-    """Menu điều hướng nền navy: logo, nhóm chức năng, mục có biểu tượng, thẻ người dùng ở chân."""
+    """Menu điều hướng nền navy, gọn kiểu ứng dụng hiện đại:
+    - trên cùng: logo + thẻ phân hệ đang đăng nhập (bo góc);
+    - giữa: các nhóm có tên NGẮN (Trang chính, Công việc hằng ngày, Hồ sơ & lớp học...), bấm tên nhóm để
+      thu gọn / mở ra; mục chỉ có biểu tượng + tên (phím tắt Ctrl+N vẫn có trong thanh menu), mục đang mở là
+      viên xanh dương bo góc;
+    - chân: thẻ tài khoản (bo góc) với nút Đổi mật khẩu / Đăng xuất."""
 
-    WIDTH = 258
+    WIDTH = 270
+    COLLAPSE_OVER = 8   # phân hệ nhiều mục hơn số này: chỉ mở sẵn nhóm đang dùng, các nhóm khác thu gọn
 
-    def __init__(self, master: tk.Misc, title: str, subtitle: str, on_select: Callable[[int], Any]) -> None:
+    def __init__(self, master: tk.Misc, title: str, subtitle: str, on_select: Callable[[int], Any],
+                 caption: str = "") -> None:
         c = COLORS
         super().__init__(master, bg=c["sidebar"], width=px(self.WIDTH))
         self.pack_propagate(False)
         self.on_select = on_select
         self.items: dict[int, dict[str, Any]] = {}
+        self.groups: dict[str, dict[str, Any]] = {}
+        self._current_group: str | None = None
         self.active: int | None = None
-        # logo + tên phân hệ
-        brand = tk.Frame(self, bg=c["sidebar"], padx=px(18), pady=px(18))
-        brand.pack(fill="x")
-        logo = tk.Canvas(brand, width=px(40), height=px(40), bg=c["sidebar"], highlightthickness=0)
-        round_rect(logo, 0, 0, px(40), px(40), px(12), fill=c["primary"], outline="")
+        # logo + tên hệ thống
+        brand = tk.Frame(self, bg=c["sidebar"], padx=px(18))
+        brand.pack(fill="x", pady=(px(16), px(12)))
+        logo = tk.Canvas(brand, width=px(36), height=px(36), bg=c["sidebar"], highlightthickness=0)
+        round_rect(logo, 0, 0, px(36), px(36), px(10), fill=c["primary"], outline="")
         for i, color in enumerate((c["orange"], "#3ccf91", c["pink"])):   # ba chấm màu vui mắt
-            x = px(10) + i * px(10)
-            logo.create_oval(x - px(3), px(27) - px(3), x + px(3), px(27) + px(3), fill=color, outline="")
-        logo.create_text(px(20), px(15), text="MN", fill="white", font=(FONTS["ui"], FONTS["size"], "bold"))
+            x = px(9) + i * px(9)
+            logo.create_oval(x - px(3), px(25) - px(3), x + px(3), px(25) + px(3), fill=color, outline="")
+        logo.create_text(px(18), px(13), text="MN", fill="white", font=(FONTS["ui"], FONTS["size"] - 1, "bold"))
         logo.pack(side="left")
         names = tk.Frame(brand, bg=c["sidebar"])
         names.pack(side="left", padx=(px(10), 0))
         tk.Label(names, text=title, font="AppBrand", fg="white", bg=c["sidebar"]).pack(anchor="w")
-        tk.Label(names, text=subtitle, font="AppSmall", fg=c["sidebar_text"], bg=c["sidebar"]).pack(anchor="w")
-        tk.Frame(self, bg=c["sidebar_hover"], height=1).pack(fill="x", padx=px(16))
-        # chân: thẻ người dùng
-        self.footer = tk.Frame(self, bg=c["sidebar"], padx=px(14), pady=px(12))
-        self.footer.pack(side="bottom", fill="x")
-        tk.Frame(self, bg=c["sidebar_hover"], height=1).pack(side="bottom", fill="x", padx=px(16))
+        tk.Label(names, text="HỆ THỐNG QUẢN LÝ MẦM NON", font="AppGroup", fg=c["sidebar_group"],
+                 bg=c["sidebar"]).pack(anchor="w")
+        # thẻ phân hệ đang đăng nhập
+        card = RoundPanel(self, c["sidebar_card"], radius=12, padx=12, pady=9)
+        card.pack(fill="x", padx=px(14), pady=(0, px(8)))
+        tk.Label(card.inner, text="⌂", font=icon_font(5), fg=c["primary_light"], bg=c["sidebar_card"]).pack(
+            side="left", padx=(0, px(10)))
+        texts = tk.Frame(card.inner, bg=c["sidebar_card"])
+        texts.pack(side="left", fill="x", expand=True)
+        tk.Label(texts, text=subtitle.replace("Hệ thống ", "", 1), font="AppNavBold", fg="white",
+                 bg=c["sidebar_card"], anchor="w", justify="left", wraplength=px(180)).pack(fill="x")
+        tk.Label(texts, text=caption or school_year(), font="AppSmall", fg=c["sidebar_text"], bg=c["sidebar_card"],
+                 anchor="w").pack(fill="x")
+        # chân: thẻ tài khoản - app.py đặt nội dung vào self.footer
+        self.footer_card = RoundPanel(self, c["sidebar_card"], radius=14, padx=12, pady=12)
+        self.footer_card.pack(side="bottom", fill="x", padx=px(14), pady=(px(6), px(14)))
+        self.footer = self.footer_card.inner
         # vùng menu cuộn được
         self.canvas = tk.Canvas(self, bg=c["sidebar"], highlightthickness=0, bd=0)
-        self.canvas.pack(fill="both", expand=True, pady=(px(6), 0))
+        self.canvas.pack(fill="both", expand=True)
         self.inner = tk.Frame(self.canvas, bg=c["sidebar"])
         self._window = self.canvas.create_window(0, 0, window=self.inner, anchor="nw")
         self.inner.bind("<Configure>", lambda _e: self.canvas.configure(scrollregion=self.canvas.bbox("all")))
@@ -273,26 +346,65 @@ class Sidebar(tk.Frame):
         if self.inner.winfo_height() > self.canvas.winfo_height():
             self.canvas.yview_scroll(int(-event.delta / 120), "units")
 
+    # ------------------------------------------------------------------ nhóm (thu gọn được)
     def add_group(self, text: str) -> None:
-        tk.Label(self.inner, text=text.upper(), font="AppGroup", fg=COLORS["sidebar_group"], bg=COLORS["sidebar"],
-                 anchor="w").pack(fill="x", padx=px(22), pady=(px(14), px(4)))
-
-    def add_item(self, index: int, icon: str, text: str, shortcut: str = "") -> None:
         c = COLORS
-        outer = tk.Frame(self.inner, bg=c["sidebar"], padx=px(10))
-        outer.pack(fill="x", pady=1)
-        row = tk.Frame(outer, bg=c["sidebar"], padx=px(10), pady=px(7), cursor="hand2")
-        row.pack(fill="x")
-        icon_label = tk.Label(row, text=icon, font=icon_font(2), fg=c["sidebar_text"], bg=c["sidebar"], width=2)
+        header = tk.Frame(self.inner, bg=c["sidebar"], cursor="hand2")
+        header.pack(fill="x", padx=px(24), pady=(px(12), px(4)))
+        label = tk.Label(header, text=text.upper(), font="AppGroup", fg=c["sidebar_group"], bg=c["sidebar"],
+                         anchor="w", cursor="hand2")
+        label.pack(side="left")
+        arrow = tk.Label(header, text="▾", font="AppSmall", fg=c["sidebar_group"], bg=c["sidebar"], cursor="hand2")
+        arrow.pack(side="right")
+        body = tk.Frame(self.inner, bg=c["sidebar"])
+        body.pack(fill="x")
+        self.groups[text] = {"header": header, "label": label, "arrow": arrow, "body": body, "open": True,
+                             "items": []}
+        for widget in (header, label, arrow):
+            widget.bind("<Button-1>", lambda _e, g=text: self.toggle_group(g))
+            widget.bind("<Enter>", lambda _e, w=(label, arrow): [x.configure(fg=c["sidebar_text"]) for x in w])
+            widget.bind("<Leave>", lambda _e, w=(label, arrow): [x.configure(fg=c["sidebar_group"]) for x in w])
+        self._current_group = text
+
+    def toggle_group(self, name: str, open_: bool | None = None) -> None:
+        group = self.groups.get(name)
+        if group is None:
+            return
+        group["open"] = (not group["open"]) if open_ is None else open_
+        if group["open"]:
+            group["body"].pack(fill="x", after=group["header"])
+        else:
+            group["body"].pack_forget()
+        group["arrow"].configure(text="▾" if group["open"] else "▸")
+        count = len(group["items"])
+        group["label"].configure(text=group["label"].cget("text").split("  (")[0] +
+                                 ("" if group["open"] else f"  ({count})"))
+
+    def finish(self) -> None:
+        """Gọi sau khi thêm hết các mục: phân hệ nhiều mục thì thu gọn sẵn các nhóm (nhóm đang dùng sẽ tự mở)."""
+        if len(self.items) > self.COLLAPSE_OVER:
+            for name in self.groups:
+                self.toggle_group(name, False)
+
+    # ------------------------------------------------------------------ mục
+    def add_item(self, index: int, icon: str, text: str, shortcut: str = "") -> None:
+        """shortcut giữ để tương thích - không hiện trên menu cho gọn (đã có trong thanh menu)."""
+        c = COLORS
+        parent = self.groups[self._current_group]["body"] if self._current_group else self.inner
+        pill = RoundPanel(parent, c["sidebar"], radius=10, padx=12, pady=8)
+        pill.pack(fill="x", padx=px(12), pady=1)
+        row = pill.inner
+        icon_label = tk.Label(row, text=icon, font=icon_font(2), fg=c["sidebar_icon"], bg=c["sidebar"], width=2)
         icon_label.pack(side="left")
         text_label = tk.Label(row, text=text, font="AppNav", fg=c["sidebar_text"], bg=c["sidebar"], anchor="w")
-        text_label.pack(side="left", fill="x", expand=True, padx=(px(8), 0))
-        key_label = tk.Label(row, text=shortcut, font="AppSmall", fg=c["sidebar_group"], bg=c["sidebar"])
-        key_label.pack(side="right")
-        widgets = [row, icon_label, text_label, key_label]
-        self.items[index] = {"widgets": widgets, "icon": icon_label, "text": text_label, "key": key_label,
-                             "frame": outer}
-        for widget in widgets:
+        text_label.pack(side="left", fill="x", expand=True, padx=(px(10), 0))
+        widgets = [icon_label, text_label]
+        self.items[index] = {"pill": pill, "widgets": widgets, "icon": icon_label, "text": text_label,
+                             "frame": pill, "group": self._current_group}
+        if self._current_group:
+            self.groups[self._current_group]["items"].append(index)
+        for widget in [pill, row] + widgets:
+            widget.configure(cursor="hand2")
             widget.bind("<Button-1>", lambda _e, i=index: self.on_select(i))
             widget.bind("<Enter>", lambda _e, i=index: self._paint(i, hover=True))
             widget.bind("<Leave>", lambda _e, i=index: self._paint(i))
@@ -302,24 +414,24 @@ class Sidebar(tk.Frame):
         if item is None:
             return
         c = COLORS
-        if index == self.active:
-            bg, fg, icon_fg, key_fg, font = c["primary"], "white", "white", c["primary_soft2"], "AppNavBold"
+        if index == self.active:   # viên xanh dương, chữ trắng đậm
+            bg, fg, icon_fg, font = c["primary"], "white", "white", "AppNavBold"
         elif hover:
-            bg, fg, icon_fg, key_fg, font = c["sidebar_hover"], "white", "white", c["sidebar_group"], "AppNav"
+            bg, fg, icon_fg, font = c["sidebar_hover"], "white", "white", "AppNav"
         else:
-            bg, fg, icon_fg, key_fg, font = c["sidebar"], c["sidebar_text"], c["sidebar_text"], c["sidebar_group"], \
-                "AppNav"
-        for widget in item["widgets"]:
-            widget.configure(bg=bg)
+            bg, fg, icon_fg, font = c["sidebar"], c["sidebar_text"], c["sidebar_icon"], "AppNav"
+        item["pill"].set_fill(bg, item["widgets"])
         item["icon"].configure(fg=icon_fg)
         item["text"].configure(fg=fg, font=font)
-        item["key"].configure(fg=key_fg)
 
     def set_active(self, index: int | None) -> None:
         previous, self.active = self.active, index
         if previous is not None:
             self._paint(previous)
         if index is not None:
+            group = self.items.get(index, {}).get("group")
+            if group and not self.groups[group]["open"]:
+                self.toggle_group(group, True)
             self._paint(index)
             self.see(index)
 
@@ -336,8 +448,10 @@ class Sidebar(tk.Frame):
             else:   # cửa sổ chưa vẽ xong - thử lại khi đã có kích thước
                 self.after(50, lambda: self.see(index))
             return
-        top = item["frame"].winfo_y() - px(44)   # chừa chỗ cho tên nhóm phía trên
-        bottom = item["frame"].winfo_y() + item["frame"].winfo_height() + px(8)
+        frame = item["frame"]
+        y = frame.winfo_rooty() - self.inner.winfo_rooty()
+        top = y - px(44)   # chừa chỗ cho tên nhóm phía trên
+        bottom = y + frame.winfo_height() + px(8)
         view_top, view_bottom = (f * total for f in self.canvas.yview())
         if top < view_top:
             self.canvas.yview_moveto(max(top, 0) / total)
@@ -345,15 +459,19 @@ class Sidebar(tk.Frame):
             self.canvas.yview_moveto((bottom - view) / total)
 
 
-def sidebar_link(master: tk.Misc, text: str, command: Callable[[], Any]) -> tk.Label:
-    """Nút dạng chữ trong vùng menu navy (Đổi mật khẩu, Đăng xuất)."""
+def sidebar_link(master: tk.Misc, text: str, command: Callable[[], Any], color: str | None = None) -> RoundPanel:
+    """Nút bo góc trong thẻ tài khoản ở chân menu (Đổi mật khẩu, Đăng xuất)."""
     c = COLORS
-    label = tk.Label(master, text=text, font="AppSmallBold", fg=c["sidebar_text"], bg=c["sidebar_hover"],
-                     padx=px(10), pady=px(5), cursor="hand2")
-    label.bind("<Button-1>", lambda _e: command())
-    label.bind("<Enter>", lambda _e: label.configure(bg=c["primary"], fg="white"))
-    label.bind("<Leave>", lambda _e: label.configure(bg=c["sidebar_hover"], fg=c["sidebar_text"]))
-    return label
+    color = color or c["sidebar_text"]
+    button = RoundPanel(master, c["sidebar_button"], radius=10, padx=4, pady=6)
+    label = tk.Label(button.inner, text=text, font="AppSmallBold", fg=color, bg=c["sidebar_button"], cursor="hand2")
+    label.pack()
+    for widget in (button, button.inner, label):
+        widget.configure(cursor="hand2")
+        widget.bind("<Button-1>", lambda _e: command())
+        widget.bind("<Enter>", lambda _e: (button.set_fill(c["primary"], [label]), label.configure(fg="white")))
+        widget.bind("<Leave>", lambda _e: (button.set_fill(c["sidebar_button"], [label]), label.configure(fg=color)))
+    return button
 
 
 # =============================================================================

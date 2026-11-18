@@ -1,10 +1,10 @@
 """Sinh tài liệu CSDL từ định nghĩa lược đồ trong kindergarten/storage/schema.py
 (luôn khớp với CSDL SQLite thật mà chương trình tạo ra).
 
-Chạy trong thư mục dự án:   python docs/CSDL/sinh_tai_lieu_csdl.py
+Chạy trong thư mục dự án:   python Database/sinh_tai_lieu_csdl.py
 Tạo / ghi đè:
-    docs/CSDL/01_tao_csdl.sql      - câu lệnh tạo toàn bộ bảng SQLite (chạy được trong DB Browser for SQLite)
-    docs/CSDL/thiet_ke_csdl.md     - thiết kế: thực thể, quan hệ, sơ đồ ERD, từ điển dữ liệu
+    Database/01_tao_csdl.sql      - câu lệnh tạo toàn bộ bảng SQLite (chạy được trong DB Browser for SQLite)
+    Database/thiet_ke_csdl.md     - thiết kế: thực thể, quan hệ, sơ đồ ERD, từ điển dữ liệu
 """
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ import re
 import sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from kindergarten.storage.schema import DATABASE_NAME, ENTITIES, SCHEMA_VERSION, TABLE_LIST, TABLES  # noqa: E402
@@ -25,7 +25,7 @@ GROUPS = {"HT": "F1.1 - Quản trị hệ thống", "DM": "F1.2 - Thông tin dan
 def write_sql() -> Path:
     lines = [
         "-- " + "=" * 100,
-        f"-- CSDL QUẢN LÝ NHÀ TRẺ - MẪU GIÁO (thiết kế v{SCHEMA_VERSION}) - tự sinh bởi docs/CSDL/sinh_tai_lieu_csdl.py",
+        f"-- CSDL QUẢN LÝ NHÀ TRẺ - MẪU GIÁO (thiết kế v{SCHEMA_VERSION}) - tự sinh bởi Database/sinh_tai_lieu_csdl.py",
         "-- Quy ước tên bảng: SUB_SYSTEM + PURPOSE_TYPE + NAME  (MN = Mầm non; HT = hệ thống, DM = danh mục, NV = nghiệp vụ)",
         f"-- CSDL SQLite: file data/{DATABASE_NAME}.db. Chương trình TỰ tạo file và các bảng này ở lần chạy đầu -",
         "-- file này chỉ để xem / tạo thủ công (DB Browser for SQLite: New Database > Execute SQL > dán > ▶).",

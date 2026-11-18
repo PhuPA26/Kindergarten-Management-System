@@ -32,9 +32,9 @@ class ClassDayMixin:
     def _class_day_bar(self: Any, allow_date: bool = True) -> ttk.Frame:
         bar = self.bar()
         ttk.Label(bar, text="Lớp:").pack(side="left")
-        self.class_box = ttk.Combobox(bar, state="readonly", width=28)
-        self.class_box.pack(side="left", padx=(4, 12))
-        self.class_box.bind("<<ComboboxSelected>>", lambda _e: self.refresh())
+        self.m_cbo_class = ttk.Combobox(bar, state="readonly", width=28)
+        self.m_cbo_class.pack(side="left", padx=(4, 12))
+        self.m_cbo_class.bind("<<ComboboxSelected>>", lambda _e: self.refresh())
         self.day_var = tk.StringVar(value=format_date(date.today()))
         if allow_date:
             ttk.Label(bar, text="Ngày:").pack(side="left")
@@ -42,8 +42,8 @@ class ClassDayMixin:
             entry.pack(side="left", padx=4)
             entry.bind("<Return>", lambda _e: self.refresh())
             ttk.Button(bar, text="Hôm nay", command=self._today).pack(side="left", padx=(0, 12))
-        self.info = ttk.Label(bar, style="Muted.TLabel")
-        self.info.pack(side="left", padx=8)
+        self.m_lbl_info = ttk.Label(bar, style="Muted.TLabel")
+        self.m_lbl_info.pack(side="left", padx=8)
         return bar
 
     def _today(self: Any) -> None:
@@ -52,18 +52,18 @@ class ClassDayMixin:
 
     def _load_classes(self: Any) -> None:
         options = [f"{c.id} - {c.name}" for c in self.system.classes_for(self.user)]
-        self.class_box["values"] = options
-        if self.class_box.get() not in options:
-            self.class_box.set(options[0] if options else "")
+        self.m_cbo_class["values"] = options
+        if self.m_cbo_class.get() not in options:
+            self.m_cbo_class.set(options[0] if options else "")
 
     def _class_id(self: Any) -> str | None:
-        return self.class_box.get().split(" - ")[0] if self.class_box.get() else None
+        return self.m_cbo_class.get().split(" - ")[0] if self.m_cbo_class.get() else None
 
     def _day(self: Any) -> date | None:
         try:
             return validate_not_future(self.day_var.get(), "Ngày")
         except KindergartenError as exc:
-            self.info.configure(text=exc.message)
+            self.m_lbl_info.configure(text=exc.message)
             return None
 
 
@@ -79,8 +79,8 @@ class OperationsTab(BaseTab):
 
     def build(self) -> None:
         bar = self.bar()
-        self.heading = ttk.Label(bar, style="Title.TLabel")
-        self.heading.pack(side="left")
+        self.m_lbl_heading = ttk.Label(bar, style="Title.TLabel")
+        self.m_lbl_heading.pack(side="left")
         self.button(bar, "Làm mới", self.refresh, side="right")
         self.cards_frame = ttk.Frame(self)
         self.cards_frame.pack(fill="x", pady=(4, 8))
@@ -104,19 +104,19 @@ class OperationsTab(BaseTab):
             button.pack(pady=(0, 8))
             self.cards.append({"frame": card, "phase": phase, "progress": progress, "color": color})
         actions = self.bar(pady=(4, 4))
-        self.report_title = ttk.Label(actions, style="Section.TLabel")
-        self.report_title.pack(side="left")
-        self.report_button = ttk.Button(actions, style="Accent.TButton", command=self.report_action)
-        self.report_button.pack(side="right")
+        self.m_lbl_report_title = ttk.Label(actions, style="Section.TLabel")
+        self.m_lbl_report_title.pack(side="left")
+        self.m_btn_report = ttk.Button(actions, style="Accent.TButton", command=self.report_action)
+        self.m_btn_report.pack(side="right")
         self.reviewer = self.can(P.REVIEW_REPORTS)
         if self.reviewer:   # Ban giám hiệu: lớp nào đã gửi / chưa gửi báo cáo cuối ngày
-            self.report_table = DataTable(self, [("Lớp", 160), ("GV chủ nhiệm", 200), ("Báo cáo cuối ngày", 160),
+            self.m_fg_report = DataTable(self, [("Lớp", 160), ("GV chủ nhiệm", 200), ("Báo cáo cuối ngày", 160),
                                                  ("Gửi lúc", 90), ("Ghi chú của giáo viên", 420)], height=6)
-            self.report_table.pack(fill="both", expand=True)
+            self.m_fg_report.pack(fill="both", expand=True)
         else:               # Giáo viên: xem trước báo cáo cuối ngày của lớp mình rồi gửi BGH
-            self.report_text = ReportView(self, height=14)
-            self.report_text.configure(highlightthickness=1, highlightbackground=COLORS["border"])
-            self.report_text.pack(fill="both", expand=True)
+            self.m_txt_report = ReportView(self, height=14)
+            self.m_txt_report.configure(highlightthickness=1, highlightbackground=COLORS["border"])
+            self.m_txt_report.pack(fill="both", expand=True)
 
     def refresh(self) -> None:
         today = date.today()
@@ -124,7 +124,7 @@ class OperationsTab(BaseTab):
         scope = self.scope_class_ids()
         school_day = self.system.calendar.is_school_day(today)
         note = "" if school_day else f" - {self.system.calendar.reason_not_school_day(today)}"
-        self.heading.configure(text=f"{weekday_name(today)} {format_date(today)}  •  {now:%H:%M}{note}")
+        self.m_lbl_heading.configure(text=f"{weekday_name(today)} {format_date(today)}  •  {now:%H:%M}{note}")
         for card, item in zip(self.cards, self.system.daily.step_progress(scope)):
             phase = item["phase"]
             done = item["complete"]
@@ -135,9 +135,9 @@ class OperationsTab(BaseTab):
             card["frame"].configure(highlightbackground=card["color"] if phase == "Đang diễn ra" else "#dbe3f0")
         status = self.system.reports.end_of_day_status(today, scope)
         if self.reviewer:
-            self.report_title.configure(text=f"⑥ Báo cáo cuối ngày các lớp gửi Ban giám hiệu: "
+            self.m_lbl_report_title.configure(text=f"⑥ Báo cáo cuối ngày các lớp gửi Ban giám hiệu: "
                                              f"{len(status['sent'])}/{len(status['classes'])} lớp")
-            self.report_button.configure(text="Mở hộp báo cáo nhận được")
+            self.m_btn_report.configure(text="Mở hộp báo cáo nhận được")
             rows, tags = [], []
             for classroom in status["classes"]:
                 item = status["sent"].get(classroom.id)
@@ -146,13 +146,13 @@ class OperationsTab(BaseTab):
                              item.status.value if item else "CHƯA GỬI", item.sent_at[11:16] if item else "",
                              item.note if item else ""])
                 tags.append("ok" if item else "warn" if now.hour >= 17 else None)
-            self.report_table.set_rows(rows, [c.id for c in status["classes"]], tags)
+            self.m_fg_report.set_rows(rows, [c.id for c in status["classes"]], tags)
         else:
             sent = bool(status["sent"]) and len(status["sent"]) >= len(status["classes"])
-            self.report_title.configure(text="⑥ Báo cáo cuối ngày của lớp - " +
+            self.m_lbl_report_title.configure(text="⑥ Báo cáo cuối ngày của lớp - " +
                                              ("ĐÃ GỬI Ban giám hiệu" if sent else "chưa gửi Ban giám hiệu"))
-            self.report_button.configure(text="Lập & gửi báo cáo cuối ngày (thêm ghi chú)")
-            self.report_text.render_report(EndOfDayReport(self.system, today, scope))
+            self.m_btn_report.configure(text="Lập & gửi báo cáo cuối ngày (thêm ghi chú)")
+            self.m_txt_report.render_report(EndOfDayReport(self.system, today, scope))
 
     def open_step(self, target: str) -> None:
         if target == "__report__":
@@ -187,54 +187,59 @@ class CheckInOutTab(ClassDayMixin, BaseTab):
                         command=self._mode_changed).pack(side="left")
         ttk.Radiobutton(mode_bar, text="⑤ Trả trẻ cuối ngày (16:00 - 17:00)", value="out", variable=self.mode,
                         command=self._mode_changed).pack(side="left", padx=16)
-        ttk.Label(mode_bar, text="Bấm ô ☐ đầu dòng để chọn nhiều trẻ (bấm ☐ ở tiêu đề = chọn / bỏ tất cả)",
-                  style="Muted.TLabel").pack(side="right")
-        self.table = DataTable(self, [("STT", 45, "center"), ("Mã", 60), ("Họ tên", 180), ("Trạng thái", 210),
+        self.m_lbl_hint = ttk.Label(mode_bar, style="Muted.TLabel")
+        self.m_lbl_hint.pack(side="right")
+        self.m_fg_list = DataTable(self, [("STT", 45, "center"), ("Mã", 60), ("Họ tên", 180), ("Trạng thái", 210),
                                       ("Người đưa / đón", 220), ("Ghi chú", 280)], checkable=True)
-        self.table.pack(fill="both", expand=True)
-        self.table.on_double_click(self.primary)
-        self.table.on_check(self._update_count)
+        self.m_fg_list.pack(fill="both", expand=True)
+        # Đón trẻ: bấm vào dòng của trẻ chưa có mặt là tích luôn (không cần nhắm đúng ô ☐)
+        self.m_fg_list.row_click_check = lambda child_id: self.mode.get() == "in" and child_id not in self.present
+        self.m_fg_list.on_double_click(lambda: self.pick_up() if self.mode.get() == "out" else None)
+        self.m_fg_list.on_check(self._update_count)
         actions = self.bar(pady=(8, 0))
-        self.quick_button = self.button(actions, "Đón các trẻ đã tích", self.quick_check_in, P.CHECK_IN_OUT,
+        self.m_btn_quick = self.button(actions, "Đón các trẻ đã tích", self.quick_check_in, P.CHECK_IN_OUT,
                                         style="Accent.TButton")
-        self.primary_button = self.button(actions, "Đón 1 trẻ (ghi người đưa, sức khỏe)", self.primary, P.CHECK_IN_OUT)
-        self.select_button = self.button(actions, "Tích tất cả trẻ chưa đến", self.select_waiting, P.CHECK_IN_OUT)
-        self.undo_button = self.button(actions, "Hủy lượt đón nhầm", self.undo, P.CHECK_IN_OUT)
-        self.summary = ttk.Label(actions, style="Muted.TLabel")
-        self.summary.pack(side="right")
+        self.m_btn_primary = self.button(actions, "Trả trẻ (xác nhận người đón)", self.pick_up, P.CHECK_IN_OUT,
+                                          style="Accent.TButton")
+        self.m_btn_select = self.button(actions, "Tích tất cả trẻ chưa đến", self.select_waiting, P.CHECK_IN_OUT)
+        self.m_btn_undo = self.button(actions, "Hủy lượt đón nhầm", self.undo, P.CHECK_IN_OUT)
+        self.m_lbl_summary = ttk.Label(actions, style="Muted.TLabel")
+        self.m_lbl_summary.pack(side="right")
         self.waiting: list[str] = []
         self.present: list[str] = []
 
     def _mode_changed(self) -> None:
-        self.table.set_checked([])
+        self.m_fg_list.set_checked([])
         self.refresh()
 
     def _update_count(self) -> None:
-        count = len([i for i in self.table.checked_ids() if i in self.table._checked])
-        noun = "Đón" if self.mode.get() == "in" else "Trả"
-        self.quick_button.configure(text=f"{noun} các trẻ đã tích ({count})" if self.mode.get() == "in"
-                                    else "Trả trẻ đang chọn (xác nhận người đón)")
+        count = len([i for i in self.m_fg_list.checked_ids() if i in self.m_fg_list._checked])
+        self.m_btn_quick.configure(text=f"Đón các trẻ đã tích ({count})")
 
     def refresh(self) -> None:
         self._load_classes()
         class_id = self._class_id()
         today = date.today()
         checking_in = self.mode.get() == "in"
-        can = self.can(P.CHECK_IN_OUT)
-        self.primary_button.configure(text="Đón 1 trẻ (ghi người đưa, sức khỏe)" if checking_in
-                                      else "Trả trẻ (xác nhận người đón)")
-        for button in (self.select_button, self.undo_button):
-            button.configure(state="normal" if checking_in and can else "disabled")
-        self.quick_button.configure(state="normal" if checking_in and can else "disabled")
+        # mỗi chế độ chỉ hiện nút của nó: đón -> đón các trẻ đã tích; trả -> trả trẻ (xác nhận người đón)
+        for button in (self.m_btn_quick, self.m_btn_primary, self.m_btn_select, self.m_btn_undo):
+            button.pack_forget()
+        shown = (self.m_btn_quick, self.m_btn_select, self.m_btn_undo) if checking_in else (self.m_btn_primary,)
+        for button in shown:
+            button.pack(side="left", padx=(0, 6), before=self.m_lbl_summary)
+        self.m_lbl_hint.configure(text="Bấm vào dòng của trẻ để tích chọn (bấm ☐ ở tiêu đề = chọn / bỏ tất cả)"
+                                  if checking_in else "Chọn trẻ rồi bấm 'Trả trẻ' (hoặc nháy đúp vào dòng)")
+        if not checking_in:
+            self.m_fg_list.set_checked([])
         self._update_count()
         if not class_id:
-            self.table.set_rows([])
+            self.m_fg_list.set_rows([])
             return
         if not self.system.calendar.is_school_day(today):
-            self.info.configure(text=self.system.calendar.reason_not_school_day(today) + " Không đón trẻ.")
-            self.table.set_rows([])
+            self.m_lbl_info.configure(text=self.system.calendar.reason_not_school_day(today) + " Không đón trẻ.")
+            self.m_fg_list.set_rows([])
             return
-        self.info.configure(text=f"{weekday_name(today)} {format_date(today)}")
+        self.m_lbl_info.configure(text=f"{weekday_name(today)} {format_date(today)}")
         rows, ids, tags = [], [], []
         self.waiting, self.present = [], []
         picked = 0
@@ -265,51 +270,23 @@ class CheckInOutTab(ClassDayMixin, BaseTab):
             rows.append([index, child.id, child.full_name, status, who, note])
             ids.append(child.id)
             tags.append(tag)
-        self.table.set_rows(rows, ids, tags)
+        self.m_fg_list.set_rows(rows, ids, tags)
         total = len(rows)
-        self.summary.configure(text=f"Có mặt {len(self.present)}/{total}  •  chưa đến {len(self.waiting)}  •  "
+        self.m_lbl_summary.configure(text=f"Có mặt {len(self.present)}/{total}  •  chưa đến {len(self.waiting)}  •  "
                                     f"đã trả {picked}/{len(self.present)}")
         self._update_count()
-
-    def primary(self) -> None:
-        if self.mode.get() == "in":
-            self.check_in()
-        else:
-            self.pick_up()
 
     def _people(self, child_id: str) -> list[tuple[str, str]]:
         people = self.system.authorized_pickups(child_id)
         return [(p[0], f"{p[0]} ({p[1]}) - {p[2]}") for p in people] + [("__other__", "Người khác (ghi tên bên dưới)")]
 
-    def check_in(self) -> None:
-        child = self.selected(self.table, self.system.children.get, "một trẻ")
-        if child is None:
-            return
-        if child.id in self.present:
-            messagebox.showinfo("Đã có mặt", f"{child.full_name} đã có mặt.", parent=self)
-            return
-        options = self._people(child.id)
-        fields = [Field("person", "Người đưa trẻ đến", "choice", options, options[0][0], width=48),
-                  Field("other", "Họ tên người khác (nếu có)", required=False),
-                  Field("health", "Lưu ý sức khỏe khi đón (sốt, ho...)", required=False)]
-
-        def submit(values: dict[str, Any]):
-            person = values["other"] if values["person"] == "__other__" else values["person"]
-            if not person:
-                raise KindergartenError("Hãy ghi họ tên người đưa trẻ.")
-            return self.system.daily.check_in(child.id, person, values["health"])
-
-        self.form(f"Đón {child.full_name}", fields, submit,
-                  success=lambda r: f"Đã đón {child.full_name} lúc {_hhmm(r.arrived_at)} - trạng thái: có mặt.",
-                  submit_text="Đón trẻ")
-
     def select_waiting(self) -> None:
-        self.table.set_checked(self.waiting)
+        self.m_fg_list.set_checked(self.waiting)
 
     def quick_check_in(self) -> None:
-        ids = [i for i in self.table.checked_ids() if i not in self.present]
+        ids = [i for i in self.m_fg_list.checked_ids() if i not in self.present]
         if not ids:
-            messagebox.showwarning("Chưa chọn", "Hãy tích ô ☐ ở đầu dòng các trẻ đã đến "
+            messagebox.showwarning("Chưa chọn", "Hãy bấm vào dòng của các trẻ đã đến để tích chọn "
                                                 "(hoặc bấm 'Tích tất cả trẻ chưa đến').", parent=self)
             return
         done, errors = 0, []
@@ -322,7 +299,7 @@ class CheckInOutTab(ClassDayMixin, BaseTab):
             except KindergartenError as exc:
                 errors.append(exc.message)
         self.app.save()
-        self.table.set_checked([])
+        self.m_fg_list.set_checked([])
         self.refresh()
         message = f"Đã đón {done} trẻ - các trẻ chuyển sang 'có mặt'."
         if errors:
@@ -330,12 +307,12 @@ class CheckInOutTab(ClassDayMixin, BaseTab):
         messagebox.showinfo("Đón trẻ", message, parent=self)
 
     def undo(self) -> None:
-        child = self.selected(self.table, self.system.children.get, "một trẻ")
+        child = self.selected(self.m_fg_list, self.system.children.get, "một trẻ")
         if child and self.confirm(f"Hủy lượt đón của {child.full_name}? Trẻ trở về trạng thái 'chưa đến' (vắng)."):
             self.guard(self.system.daily.undo_check_in, child.id, success="Đã hủy lượt đón.")
 
     def pick_up(self) -> None:
-        child = self.selected(self.table, self.system.children.get, "một trẻ")
+        child = self.selected(self.m_fg_list, self.system.children.get, "một trẻ")
         if child is None:
             return
         if child.id not in self.present:   # trẻ vắng không ở lớp -> không có gì để trả
@@ -369,11 +346,11 @@ class DailyLogTab(ClassDayMixin, BaseTab):
 
     def build(self) -> None:
         self._class_day_bar()
-        self.table = DataTable(self, [("Mã", 55), ("Họ tên", 160), ("Bữa sáng", 80), ("Bữa trưa", 80),
+        self.m_fg_list = DataTable(self, [("Mã", 55), ("Họ tên", 160), ("Bữa sáng", 80), ("Bữa trưa", 80),
                                       ("Bữa xế", 80), ("Giấc ngủ", 120), ("Tâm trạng", 85), ("Hoạt động / ghi chú", 230),
                                       ("Gửi PH", 60, "center"), ("PH xem / phản hồi", 200)], checkable=True)
-        self.table.pack(fill="both", expand=True)
-        self.table.on_double_click(self.edit)
+        self.m_fg_list.pack(fill="both", expand=True)
+        self.m_fg_list.on_double_click(self.edit)
         actions = self.bar(pady=(8, 0))
         self.button(actions, "Cập nhật trẻ đang chọn", self.edit, P.DAILY_LOG, style="Accent.TButton")
         self.button(actions, "Điền nhanh (ăn hết, ngủ ngon) cho trẻ chưa có", self.fill_defaults, P.DAILY_LOG)
@@ -384,11 +361,11 @@ class DailyLogTab(ClassDayMixin, BaseTab):
         self._load_classes()
         class_id, day = self._class_id(), self._day()
         if not class_id or day is None:
-            self.table.set_rows([])
+            self.m_fg_list.set_rows([])
             return
         if not self.system.calendar.is_school_day(day):
-            self.info.configure(text=self.system.calendar.reason_not_school_day(day))
-            self.table.set_rows([])
+            self.m_lbl_info.configure(text=self.system.calendar.reason_not_school_day(day))
+            self.m_fg_list.set_rows([])
             return
         rows, ids, tags = [], [], []
         sent = total = 0
@@ -414,11 +391,11 @@ class DailyLogTab(ClassDayMixin, BaseTab):
                              "✔" if log and log.is_sent else "", feedback])
                 tags.append(None if log else "warn")
             ids.append(child.id)
-        self.table.set_rows(rows, ids, tags)
-        self.info.configure(text=f"{weekday_name(day)} {format_date(day)} - đã gửi {sent}/{total} trẻ có mặt")
+        self.m_fg_list.set_rows(rows, ids, tags)
+        self.m_lbl_info.configure(text=f"{weekday_name(day)} {format_date(day)} - đã gửi {sent}/{total} trẻ có mặt")
 
     def edit(self) -> None:
-        ids = self.table.checked_ids()
+        ids = self.m_fg_list.checked_ids()
         day = self._day()
         if not ids or day is None:
             messagebox.showwarning("Chưa chọn", "Hãy tích ô ☐ đầu dòng một hoặc nhiều trẻ (cùng mức ăn ngủ).",
@@ -464,7 +441,7 @@ class DailyLogTab(ClassDayMixin, BaseTab):
                        success=lambda n: f"Đã gửi nhật ký của {n} trẻ cho phụ huynh.")
 
     def view(self) -> None:
-        child_id, day = self.table.selected_id(), self._day()
+        child_id, day = self.m_fg_list.selected_id(), self._day()
         log = self.system.daily.log_of(child_id, day) if child_id and day else None
         if log is None:
             messagebox.showinfo("Chưa có", "Trẻ này chưa có nhật ký trong ngày.", parent=self)
@@ -486,16 +463,16 @@ class ParentContactTab(BaseTab):
     def build(self) -> None:
         bar = self.bar()
         ttk.Label(bar, text="Hiển thị:").pack(side="left")
-        self.filter = ttk.Combobox(bar, state="readonly", width=20, values=["Chờ xử lý", "Hôm nay", "Tất cả"])
-        self.filter.set("Chờ xử lý")
-        self.filter.pack(side="left", padx=4)
-        self.filter.bind("<<ComboboxSelected>>", lambda _e: self.refresh())
-        self.count = ttk.Label(bar, style="Muted.TLabel")
-        self.count.pack(side="left", padx=12)
-        self.table = DataTable(self, [("Gửi lúc", 110), ("Loại", 110), ("Trẻ", 150), ("Lớp", 110), ("Nội dung", 330),
+        self.m_cbo_filter = ttk.Combobox(bar, state="readonly", width=20, values=["Chờ xử lý", "Hôm nay", "Tất cả"])
+        self.m_cbo_filter.set("Chờ xử lý")
+        self.m_cbo_filter.pack(side="left", padx=4)
+        self.m_cbo_filter.bind("<<ComboboxSelected>>", lambda _e: self.refresh())
+        self.m_lbl_count = ttk.Label(bar, style="Muted.TLabel")
+        self.m_lbl_count.pack(side="left", padx=12)
+        self.m_fg_list = DataTable(self, [("Gửi lúc", 110), ("Loại", 110), ("Trẻ", 150), ("Lớp", 110), ("Nội dung", 330),
                                       ("Người gửi", 150), ("Trạng thái", 100), ("Trả lời", 220)])
-        self.table.pack(fill="both", expand=True)
-        self.table.on_double_click(self.open)
+        self.m_fg_list.pack(fill="both", expand=True)
+        self.m_fg_list.on_double_click(self.open)
         actions = self.bar(pady=(8, 0))
         self.button(actions, "Xem & trả lời", self.open, style="Accent.TButton")
         self.button(actions, "Đã thực hiện / Duyệt xin nghỉ", self.complete)
@@ -504,7 +481,7 @@ class ParentContactTab(BaseTab):
         self.button(actions, "Gửi thông báo cho lớp", self.announce)
 
     def refresh(self) -> None:
-        mode = self.filter.get()
+        mode = self.m_cbo_filter.get()
         scope = self.scope_class_ids()
         items = self.system.daily.inbox(scope, only_open=mode == "Chờ xử lý",
                                         on_date=date.today() if mode == "Hôm nay" else None)
@@ -515,12 +492,12 @@ class ParentContactTab(BaseTab):
                          self.class_name(m.class_id), m.detail_text(), m.sender, m.status.value, m.reply or ""])
             tags.append("warn" if m.needs_action and m.kind is MessageKind.MEDICINE else
                         None if m.needs_action else "muted")
-        self.table.set_rows(rows, [m.id for m in items], tags)
+        self.m_fg_list.set_rows(rows, [m.id for m in items], tags)
         waiting = len(self.system.daily.inbox(scope, only_open=True))
-        self.count.configure(text=f"{waiting} tin chờ xử lý")
+        self.m_lbl_count.configure(text=f"{waiting} tin chờ xử lý")
 
     def _selected(self):
-        return self.selected(self.table, self.system.daily.messages.get, "một tin nhắn")
+        return self.selected(self.m_fg_list, self.system.daily.messages.get, "một tin nhắn")
 
     def open(self) -> None:
         message = self._selected()
@@ -582,15 +559,15 @@ class ServicesTab(BaseTab):
         panes.add(left, weight=2)
         panes.add(right, weight=3)
         ttk.Label(left, text="Danh mục dịch vụ", style="Section.TLabel").pack(anchor="w")
-        self.services = DataTable(left, [("Tên dịch vụ", 200), ("Giá / tháng", 110, "e"), ("Số trẻ", 60, "center")])
-        self.services.pack(fill="both", expand=True)
-        self.services.on_select(self.refresh_children)
+        self.m_fg_services = DataTable(left, [("Tên dịch vụ", 200), ("Giá / tháng", 110, "e"), ("Số trẻ", 60, "center")])
+        self.m_fg_services.pack(fill="both", expand=True)
+        self.m_fg_services.on_select(self.refresh_children)
         self.master_bar(self.add, self.edit, self.delete, P.MANAGE_SERVICES, master=left)
-        self.child_title = ttk.Label(right, text="Trẻ đăng ký", style="Section.TLabel")
-        self.child_title.pack(anchor="w")
-        self.children_table = DataTable(right, [("Mã", 60), ("Họ tên", 180), ("Lớp", 140), ("Dịch vụ đang dùng", 260)],
+        self.m_lbl_child_title = ttk.Label(right, text="Trẻ đăng ký", style="Section.TLabel")
+        self.m_lbl_child_title.pack(anchor="w")
+        self.m_fg_children = DataTable(right, [("Mã", 60), ("Họ tên", 180), ("Lớp", 140), ("Dịch vụ đang dùng", 260)],
                                         selectmode="extended")
-        self.children_table.pack(fill="both", expand=True)
+        self.m_fg_children.pack(fill="both", expand=True)
         bar = self.bar(right, pady=(6, 0))
         self.button(bar, "Đăng ký thêm trẻ", self.register, P.MANAGE_SERVICES, style="Accent.TButton")
         self.button(bar, "Hủy đăng ký trẻ đã chọn", self.unregister, P.MANAGE_SERVICES)
@@ -599,20 +576,20 @@ class ServicesTab(BaseTab):
 
     def refresh(self) -> None:
         catalog = self.system.service_catalog()
-        self.services.set_rows([[name, format_vnd(price), count] for name, price, count in catalog],
+        self.m_fg_services.set_rows([[name, format_vnd(price), count] for name, price, count in catalog],
                                [name for name, _p, _c in catalog])
-        if self.services.selected_id() is None and catalog:
-            self.services.tree.selection_set(catalog[0][0])
+        if self.m_fg_services.selected_id() is None and catalog:
+            self.m_fg_services.tree.selection_set(catalog[0][0])
         self.refresh_children()
 
     def _service(self) -> str | None:
-        return self.services.selected_id()
+        return self.m_fg_services.selected_id()
 
     def refresh_children(self) -> None:
         service = self._service()
         kids = self.system.children_using_service(service) if service else []
-        self.child_title.configure(text=f"Trẻ đăng ký: {service or '-'} ({len(kids)} trẻ)")
-        self.children_table.set_rows([[c.id, c.full_name, self.class_name(c.class_id), ", ".join(c.extra_services)]
+        self.m_lbl_child_title.configure(text=f"Trẻ đăng ký: {service or '-'} ({len(kids)} trẻ)")
+        self.m_fg_children.set_rows([[c.id, c.full_name, self.class_name(c.class_id), ", ".join(c.extra_services)]
                                       for c in kids], [c.id for c in kids])
 
     def _fields(self, name: str | None = None) -> list[Field]:
@@ -660,7 +637,7 @@ class ServicesTab(BaseTab):
         self.form(f"Đăng ký dịch vụ {service}", fields, submit, success=lambda n: f"Đã đăng ký cho {n} trẻ.")
 
     def unregister(self) -> None:
-        service, ids = self._service(), self.children_table.selected_ids()
+        service, ids = self._service(), self.m_fg_children.selected_ids()
         if service and ids and self.confirm(f"Hủy dịch vụ '{service}' cho {len(ids)} trẻ đã chọn?"):
             for child_id in ids:
                 self.guard(self.system.set_child_service, child_id, service, False)
@@ -681,10 +658,10 @@ class CalendarTab(BaseTab):
         self.saturday = tk.BooleanVar()
         ttk.Checkbutton(bar, text="Trường có học Thứ 7", variable=self.saturday,
                         command=self.toggle_saturday).pack(side="left")
-        self.summary = ttk.Label(bar, style="Muted.TLabel")
-        self.summary.pack(side="left", padx=16)
-        self.table = DataTable(self, [("Ngày", 100), ("Thứ", 80), ("Tên ngày nghỉ", 320)], selectmode="extended")
-        self.table.pack(fill="both", expand=True)
+        self.m_lbl_summary = ttk.Label(bar, style="Muted.TLabel")
+        self.m_lbl_summary.pack(side="left", padx=16)
+        self.m_fg_list = DataTable(self, [("Ngày", 100), ("Thứ", 80), ("Tên ngày nghỉ", 320)], selectmode="extended")
+        self.m_fg_list.pack(fill="both", expand=True)
         actions = self.bar(pady=(8, 0))
         self.button(actions, "Thêm ngày nghỉ", self.add, P.MANAGE_CALENDAR, style="Accent.TButton")
         self.button(actions, "Thêm ngày lễ cố định của một năm", self.add_fixed, P.MANAGE_CALENDAR)
@@ -694,11 +671,11 @@ class CalendarTab(BaseTab):
         cal = self.system.calendar
         self.saturday.set(cal.saturday_classes)
         items = list(cal.holidays.items())
-        self.table.set_rows([[format_date(d), WEEKDAY_NAMES[d.weekday()], name] for d, name in items],
+        self.m_fg_list.set_rows([[format_date(d), WEEKDAY_NAMES[d.weekday()], name] for d, name in items],
                             [d.isoformat() for d, _ in items],
                             ["muted" if d < date.today() else None for d, _ in items])
         upcoming = [d for d, _ in items if d >= date.today()]
-        self.summary.configure(text=f"{len(items)} ngày nghỉ, sắp tới: "
+        self.m_lbl_summary.configure(text=f"{len(items)} ngày nghỉ, sắp tới: "
                                     + (f"{format_date(upcoming[0])} ({cal.holiday_name(upcoming[0])})"
                                        if upcoming else "không có"))
 
@@ -729,7 +706,7 @@ class CalendarTab(BaseTab):
                   success=lambda n: f"Đã thêm {n} ngày lễ. Tết Âm lịch thay đổi theo năm - thêm bằng 'Thêm ngày nghỉ'.")
 
     def remove(self) -> None:
-        ids = self.table.selected_ids()
+        ids = self.m_fg_list.selected_ids()
         if not ids:
             messagebox.showwarning("Chưa chọn", "Hãy chọn ngày cần bỏ.", parent=self)
             return

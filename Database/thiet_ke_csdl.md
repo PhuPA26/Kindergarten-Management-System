@@ -1,8 +1,8 @@
 # Thiết kế cơ sở dữ liệu - Hệ thống quản lý Nhà trẻ - Mẫu giáo
 
 > Phần 4 - 6 (sơ đồ ERD, khóa ngoại, từ điển dữ liệu) được **sinh tự động** từ định nghĩa lược đồ trong
-> `kindergarten/storage/schema.py` bằng lệnh `python docs/CSDL/sinh_tai_lieu_csdl.py`, nên luôn khớp với
-> CSDL mà chương trình tạo ra. Phần 1 - 3 viết tay trong `docs/CSDL/_thiet_ke_mo_dau.md`.
+> `kindergarten/storage/schema.py` bằng lệnh `python Database/sinh_tai_lieu_csdl.py`, nên luôn khớp với
+> CSDL mà chương trình tạo ra. Phần 1 - 3 viết tay trong `Database/_thiet_ke_mo_dau.md`.
 >
 > Hệ quản trị CSDL: **SQLite** - toàn bộ CSDL là một file `data/ql_mam_non.db`, không cần cài máy chủ.
 > Xem / sửa bảng bằng **DB Browser for SQLite** (mở thẳng file `.db`).
@@ -415,6 +415,26 @@ erDiagram
         datetime THUC_HIEN_LUC
         varchar MA_DON_NGHI FK
     }
+    MN_NV_SO_TIET_DAY {
+        varchar MA_TIET_DAY PK
+        date NGAY_DAY
+        varchar MA_LOP FK
+        varchar MA_GIAO_VIEN FK
+        varchar MON_HOC
+        varchar MA_TIET
+        varchar GIO_DAY
+        text NOI_DUNG
+        varchar DANH_GIA_CHUNG
+        text GHI_CHU
+        varchar NGUOI_GHI
+        datetime CAP_NHAT_LUC
+    }
+    MN_NV_TIET_DAY_NHAN_XET {
+        varchar MA_TIET_DAY PK,FK
+        varchar MA_TRE PK,FK
+        varchar MUC_DANH_GIA
+        varchar NHAN_XET
+    }
     MN_NV_BAO_CAO {
         varchar MA_BAO_CAO PK
         varchar LOAI_BAO_CAO
@@ -482,6 +502,10 @@ erDiagram
     MN_NV_NHAT_KY_TRE ||--o{ MN_NV_NHAT_KY_BUA_AN : "MA_NHAT_KY"
     MN_DM_TRE |o--o{ MN_NV_TIN_NHAN : "MA_TRE"
     MN_NV_DON_XIN_NGHI |o--o{ MN_NV_TIN_NHAN : "MA_DON_NGHI"
+    MN_DM_LOP_HOC ||--o{ MN_NV_SO_TIET_DAY : "MA_LOP"
+    MN_DM_NHAN_SU ||--o{ MN_NV_SO_TIET_DAY : "MA_GIAO_VIEN"
+    MN_NV_SO_TIET_DAY ||--o{ MN_NV_TIET_DAY_NHAN_XET : "MA_TIET_DAY"
+    MN_DM_TRE ||--o{ MN_NV_TIET_DAY_NHAN_XET : "MA_TRE"
     MN_NV_BAO_CAO ||--o{ MN_NV_BAO_CAO_NGUON : "MA_BAO_CAO"
     MN_NV_BAO_CAO ||--o{ MN_NV_BAO_CAO_NGUON : "MA_BAO_CAO_NGUON"
     MN_NV_BAO_CAO ||--o{ MN_NV_BAO_CAO_LICH_SU : "MA_BAO_CAO"
@@ -523,6 +547,10 @@ erDiagram
     MN_NV_NHAT_KY_TRE ||--o{ MN_NV_NHAT_KY_BUA_AN : "MA_NHAT_KY"
     MN_DM_TRE |o--o{ MN_NV_TIN_NHAN : "MA_TRE"
     MN_NV_DON_XIN_NGHI |o--o{ MN_NV_TIN_NHAN : "MA_DON_NGHI"
+    MN_DM_LOP_HOC ||--o{ MN_NV_SO_TIET_DAY : "MA_LOP"
+    MN_DM_NHAN_SU ||--o{ MN_NV_SO_TIET_DAY : "MA_GIAO_VIEN"
+    MN_NV_SO_TIET_DAY ||--o{ MN_NV_TIET_DAY_NHAN_XET : "MA_TIET_DAY"
+    MN_DM_TRE ||--o{ MN_NV_TIET_DAY_NHAN_XET : "MA_TRE"
     MN_NV_BAO_CAO ||--o{ MN_NV_BAO_CAO_NGUON : "MA_BAO_CAO"
     MN_NV_BAO_CAO ||--o{ MN_NV_BAO_CAO_NGUON : "MA_BAO_CAO_NGUON"
     MN_NV_BAO_CAO ||--o{ MN_NV_BAO_CAO_LICH_SU : "MA_BAO_CAO"
@@ -564,6 +592,10 @@ erDiagram
 | `MN_NV_NHAT_KY_TRE` | `MN_NV_NHAT_KY_BUA_AN` | `MA_NHAT_KY` | 1 - n | xóa theo |
 | `MN_DM_TRE` | `MN_NV_TIN_NHAN` | `MA_TRE` | 0..1 - n | xóa theo |
 | `MN_NV_DON_XIN_NGHI` | `MN_NV_TIN_NHAN` | `MA_DON_NGHI` | 0..1 - n | để trống liên kết |
+| `MN_DM_LOP_HOC` | `MN_NV_SO_TIET_DAY` | `MA_LOP` | 1 - n | xóa theo |
+| `MN_DM_NHAN_SU` | `MN_NV_SO_TIET_DAY` | `MA_GIAO_VIEN` | 1 - n | xóa theo |
+| `MN_NV_SO_TIET_DAY` | `MN_NV_TIET_DAY_NHAN_XET` | `MA_TIET_DAY` | 1 - n | xóa theo |
+| `MN_DM_TRE` | `MN_NV_TIET_DAY_NHAN_XET` | `MA_TRE` | 1 - n | xóa theo |
 | `MN_NV_BAO_CAO` | `MN_NV_BAO_CAO_NGUON` | `MA_BAO_CAO` | 1 - n | xóa theo |
 | `MN_NV_BAO_CAO` | `MN_NV_BAO_CAO_NGUON` | `MA_BAO_CAO_NGUON` | 1 - n | không cho xóa |
 | `MN_NV_BAO_CAO` | `MN_NV_BAO_CAO_LICH_SU` | `MA_BAO_CAO` | 1 - n | xóa theo |
@@ -571,7 +603,7 @@ erDiagram
 
 ## 6. Từ điển dữ liệu
 
-Tổng cộng **40 bảng**: 6 bảng hệ thống, 13 bảng danh mục, 21 bảng nghiệp vụ. Bảng chi tiết (xóa / ghi lại cùng thực thể cha): `MN_DM_GIAO_VIEN`, `MN_DM_NGUOI_DON_HO`, `MN_DM_NHAN_VIEN`, `MN_DM_THANH_PHAN_MON`, `MN_DM_TRE_PHU_HUYNH`, `MN_NV_BANG_LUONG_CHI_TIET`, `MN_NV_BAO_CAO_LICH_SU`, `MN_NV_BAO_CAO_NGUON`, `MN_NV_DANG_KY_DICH_VU`, `MN_NV_DON_NGHI_NGAY_DA_DUYET`, `MN_NV_HOA_DON_KHOAN_PHI`, `MN_NV_LAM_THEM_GIO`, `MN_NV_NHAT_KY_BUA_AN`, `MN_NV_PHIEU_THU`, `MN_NV_THUC_DON_CHI_TIET`.
+Tổng cộng **42 bảng**: 6 bảng hệ thống, 13 bảng danh mục, 23 bảng nghiệp vụ. Bảng chi tiết (xóa / ghi lại cùng thực thể cha): `MN_DM_GIAO_VIEN`, `MN_DM_NGUOI_DON_HO`, `MN_DM_NHAN_VIEN`, `MN_DM_THANH_PHAN_MON`, `MN_DM_TRE_PHU_HUYNH`, `MN_NV_BANG_LUONG_CHI_TIET`, `MN_NV_BAO_CAO_LICH_SU`, `MN_NV_BAO_CAO_NGUON`, `MN_NV_DANG_KY_DICH_VU`, `MN_NV_DON_NGHI_NGAY_DA_DUYET`, `MN_NV_HOA_DON_KHOAN_PHI`, `MN_NV_LAM_THEM_GIO`, `MN_NV_NHAT_KY_BUA_AN`, `MN_NV_PHIEU_THU`, `MN_NV_THUC_DON_CHI_TIET`, `MN_NV_TIET_DAY_NHAN_XET`.
 
 ### F1.1 - Quản trị hệ thống
 
@@ -989,6 +1021,32 @@ Ràng buộc kiểm tra: `THANG BETWEEN 1 AND 12`
 | `GUI_LUC` | DATETIME |  |  | Gửi lúc |
 | `THUC_HIEN_LUC` | DATETIME |  |  | Thực hiện lúc (cho uống thuốc) |
 | `MA_DON_NGHI` | VARCHAR(20) | FK → `MN_NV_DON_XIN_NGHI` |  | Đơn xin nghỉ được tạo từ tin nhắn |
+
+#### `MN_NV_SO_TIET_DAY` - Sổ tiết dạy bộ môn - giáo viên bộ môn ghi mỗi tiết đã dạy ở một lớp
+
+| Cột | Kiểu | Khóa | Bắt buộc | Ý nghĩa |
+|---|---|---|---|---|
+| `MA_TIET_DAY` | VARCHAR(20) | PK | x | Mã (TDxxx) |
+| `NGAY_DAY` | DATE | UNIQUE | x | Ngày dạy |
+| `MA_LOP` | VARCHAR(20) | FK → `MN_DM_LOP_HOC` UNIQUE | x | Lớp được dạy |
+| `MA_GIAO_VIEN` | VARCHAR(20) | FK → `MN_DM_NHAN_SU` UNIQUE | x | Giáo viên bộ môn |
+| `MON_HOC` | VARCHAR(100) | UNIQUE | x | Môn học / hoạt động (Âm nhạc, Tiếng Anh...) |
+| `MA_TIET` | VARCHAR(20) |  |  | Tiết trong thời khóa biểu (lưu lại, không ràng buộc) |
+| `GIO_DAY` | VARCHAR(20) |  |  | Giờ dạy (VD: 09:00 - 09:35) |
+| `NOI_DUNG` | TEXT |  | x | Nội dung bài dạy |
+| `DANH_GIA_CHUNG` | VARCHAR(30) |  |  | Đánh giá chung cả lớp (Tốt / Khá / Trung bình / Cần cố gắng) |
+| `GHI_CHU` | TEXT |  |  | Ghi chú |
+| `NGUOI_GHI` | VARCHAR(150) |  |  | Người ghi sổ |
+| `CAP_NHAT_LUC` | DATETIME |  |  | Cập nhật lúc |
+
+#### `MN_NV_TIET_DAY_NHAN_XET` - Nhận xét từng trẻ trong tiết dạy bộ môn
+
+| Cột | Kiểu | Khóa | Bắt buộc | Ý nghĩa |
+|---|---|---|---|---|
+| `MA_TIET_DAY` | VARCHAR(20) | PK FK → `MN_NV_SO_TIET_DAY` | x | Tiết dạy |
+| `MA_TRE` | VARCHAR(20) | PK FK → `MN_DM_TRE` | x | Trẻ |
+| `MUC_DANH_GIA` | VARCHAR(30) |  |  | Nổi bật / Đạt / Cần hỗ trợ |
+| `NHAN_XET` | VARCHAR(255) |  |  | Nhận xét của giáo viên bộ môn |
 
 #### `MN_NV_BAO_CAO` - Báo cáo các bộ phận gửi Ban giám hiệu và báo cáo toàn trường
 

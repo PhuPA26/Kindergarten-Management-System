@@ -1,8 +1,8 @@
 # Thiết kế cơ sở dữ liệu - Hệ thống quản lý Nhà trẻ - Mẫu giáo
 
 > Phần 4 - 6 (sơ đồ ERD, khóa ngoại, từ điển dữ liệu) được **sinh tự động** từ định nghĩa lược đồ trong
-> `kindergarten/storage/schema.py` bằng lệnh `python docs/CSDL/sinh_tai_lieu_csdl.py`, nên luôn khớp với
-> CSDL mà chương trình tạo ra. Phần 1 - 3 viết tay trong `docs/CSDL/_thiet_ke_mo_dau.md`.
+> `kindergarten/storage/schema.py` bằng lệnh `python Database/sinh_tai_lieu_csdl.py`, nên luôn khớp với
+> CSDL mà chương trình tạo ra. Phần 1 - 3 viết tay trong `Database/_thiet_ke_mo_dau.md`.
 >
 > Hệ quản trị CSDL: **SQLite** - toàn bộ CSDL là một file `data/ql_mam_non.db`, không cần cài máy chủ.
 > Xem / sửa bảng bằng **DB Browser for SQLite** (mở thẳng file `.db`).

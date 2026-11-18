@@ -37,6 +37,7 @@ from ..health.records import Allergy, HealthRecord
 from ..nutrition.meal import Meal, Menu
 from ..people.child import Child
 from ..people.parent import Parent
+from ..teaching.lesson_log import LessonLog
 from ..school_calendar import SchoolCalendar
 
 if TYPE_CHECKING:
@@ -77,6 +78,7 @@ class DataStore:
             "daily_logs": (system.daily.logs, DailyLog.from_dict),
             "messages": (system.daily.messages, Message.from_dict),
             "reports": (system.reports, SubmittedReport.from_dict),
+            "lesson_logs": (system.lessons, LessonLog.from_dict),
         }
 
     def path_of(self, name: str) -> Path:

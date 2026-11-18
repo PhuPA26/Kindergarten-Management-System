@@ -33,8 +33,8 @@ DEMO_ACCOUNTS = [
     ("gv.nhung", "giaovien123", "Giáo viên CN lớp Mầm Sơn Ca"),
     ("gv.ha", "giaovien123", "Giáo viên CN lớp Chồi Họa Mi"),
     ("gv.maianh", "giaovien123", "Giáo viên CN lớp Lá Vành Khuyên"),
-    ("gv.tuan", "giaovien123", "Giáo viên Âm nhạc"),
-    ("gv.lan", "giaovien123", "Giáo viên Tiếng Anh"),
+    ("gv.tuan", "giaovien123", "Giáo viên bộ môn Âm nhạc"),
+    ("gv.lan", "giaovien123", "Giáo viên bộ môn Tiếng Anh"),
     ("nv.sau", "nhanvien123", "Nhân viên cấp dưỡng"),
     ("nv.hung", "nhanvien123", "Nhân viên bảo vệ (đón/trả trẻ ở cổng)"),
     ("nv.yen", "nhanvien123", "Nhân viên y tế (cân đo, dị ứng)"),
@@ -181,6 +181,18 @@ LEARNING = ["Làm quen với Toán", "Khám phá khoa học", "Làm quen chữ c
 SPECIAL_LESSONS = {
     (0, 0): ("Âm nhạc", 3), (1, 1): ("Âm nhạc", 3), (2, 2): ("Âm nhạc", 3),
     (0, 2): ("Tiếng Anh", 4), (1, 3): ("Tiếng Anh", 4), (2, 4): ("Tiếng Anh", 4),
+}
+SUBJECT_TOPICS = {
+    "Âm nhạc": ["Dạy hát: Cả nhà thương nhau", "Vận động theo nhạc: Con cào cào", "Nghe hát: Ru con",
+                "Trò chơi âm nhạc: Ai nhanh nhất", "Dạy hát: Cháu yêu bà", "Gõ đệm theo phách: Đàn gà con"],
+    "Tiếng Anh": ["Colors: red, blue, yellow", "Animals: cat, dog, bird", "Numbers 1 - 5", "Greetings: Hello, Goodbye",
+                  "Family: mom, dad, baby", "Fruits: apple, banana, orange"],
+}
+CHILD_COMMENTS = {
+    "Nổi bật": ["Hát to, rõ lời, mạnh dạn biểu diễn trước lớp", "Nhớ từ mới nhanh, phát âm chuẩn",
+                "Hăng hái xung phong, giúp bạn cùng làm"],
+    "Cần hỗ trợ": ["Còn rụt rè, chưa dám hát cùng bạn", "Chưa tập trung, cần cô nhắc nhiều",
+                   "Chưa nhớ từ mới, cần ôn thêm ở nhà"],
 }
 LEAVE_REASONS = ["Bé bị sốt", "Gia đình về quê", "Bé đi khám răng", "Bé bị ho, sổ mũi", "Gia đình có việc riêng"]
 
@@ -400,6 +412,30 @@ def seed(system: KindergartenSystem, verbose: bool = False) -> dict[str, int]:
         elif index % 5 == 3:
             invoice.add_payment(round(invoice.total * 0.5, -3), pay_day, "Chuyển khoản", collected_by="ketoan")
 
+    # ---------------- Sổ tiết dạy bộ môn (GV Âm nhạc, Tiếng Anh): 3 tuần gần nhất, chừa vài tiết chưa ghi
+    from kindergarten.teaching.lesson_log import LessonLog
+    subject_slots = [s for s in system.timetable if s.teacher_id in (teachers[3].id, teachers[4].id)]
+    for back in range(21, 0, -1):
+        day = today - timedelta(days=back)
+        if not system.calendar.is_school_day(day):
+            continue
+        for slot in (s for s in subject_slots if s.weekday == day.weekday()):
+            if rng.random() < 0.15:   # quên ghi sổ -> báo cáo chuyên môn có tỷ lệ ghi sổ chưa đủ
+                continue
+            topics = SUBJECT_TOPICS[slot.activity]   # cùng một tuần, GV bộ môn dạy cùng một bài cho các lớp
+            topic = topics[day.isocalendar()[1] % len(topics)]
+            log = LessonLog(slot.class_id, slot.teacher_id, day, slot.activity, topic,
+                            rng.choice(["Tốt", "Tốt", "Khá", "Trung bình"]), slot_id=slot.id,
+                            time_text=slot.time_range, created_by=system.employees.get(slot.teacher_id).full_name,
+                            updated_at=f"{day.isoformat()}T{slot.end.strftime('%H:%M')}")
+            kids = system.classes.class_list(slot.class_id)
+            notes = {}
+            for kid in rng.sample(kids, k=min(2, len(kids))):
+                level = rng.choice(["Nổi bật", "Nổi bật", "Cần hỗ trợ"])
+                notes[kid.id] = {"level": level, "comment": rng.choice(CHILD_COMMENTS[level])}
+            log.child_notes = notes
+            system.lessons.add(log)
+
     counts = {
         "tài khoản": len(system.auth), "giáo viên": len(teachers), "nhân viên": len(staff),
         "lớp": len(system.classes), "trẻ": len(system.children), "phụ huynh": len(system.parents),
@@ -408,6 +444,7 @@ def seed(system: KindergartenSystem, verbose: bool = False) -> dict[str, int]:
         "điểm danh": len(system.attendance), "đơn xin nghỉ": len(system.attendance.leave_requests),
         "món ăn": len(system.menus.meals), "thực đơn ngày": len(system.menus), "hóa đơn": len(system.invoices),
         "nhật ký ăn ngủ": len(system.daily.logs), "tin nhắn": len(system.daily.messages),
+        "tiết dạy bộ môn đã ghi sổ": len(system.lessons),
     }
     if verbose:
         print("Đã nạp dữ liệu mẫu: " + ", ".join(f"{v} {k}" for k, v in counts.items()))

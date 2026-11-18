@@ -1,5 +1,5 @@
 -- ====================================================================================================
--- CSDL QUẢN LÝ NHÀ TRẺ - MẪU GIÁO (thiết kế v2) - tự sinh bởi docs/CSDL/sinh_tai_lieu_csdl.py
+-- CSDL QUẢN LÝ NHÀ TRẺ - MẪU GIÁO (thiết kế v2) - tự sinh bởi Database/sinh_tai_lieu_csdl.py
 -- Quy ước tên bảng: SUB_SYSTEM + PURPOSE_TYPE + NAME  (MN = Mầm non; HT = hệ thống, DM = danh mục, NV = nghiệp vụ)
 -- CSDL SQLite: file data/ql_mam_non.db. Chương trình TỰ tạo file và các bảng này ở lần chạy đầu -
 -- file này chỉ để xem / tạo thủ công (DB Browser for SQLite: New Database > Execute SQL > dán > ▶).
@@ -389,6 +389,35 @@ CREATE TABLE IF NOT EXISTS "MN_NV_TIN_NHAN" ( /* Trao đổi giữa phụ huynh 
   CONSTRAINT "FK_MN_NV_TIN_NHAN_2" FOREIGN KEY ("MA_DON_NGHI") REFERENCES "MN_NV_DON_XIN_NGHI" ("MA_DON") ON DELETE SET NULL ON UPDATE CASCADE
 );
 
+CREATE TABLE IF NOT EXISTS "MN_NV_SO_TIET_DAY" ( /* Sổ tiết dạy bộ môn - giáo viên bộ môn ghi mỗi tiết đã dạy ở một lớp */
+  "MA_TIET_DAY" VARCHAR(20) NOT NULL /* Mã (TDxxx) */,
+  "NGAY_DAY" DATE NOT NULL /* Ngày dạy */,
+  "MA_LOP" VARCHAR(20) NOT NULL /* Lớp được dạy */,
+  "MA_GIAO_VIEN" VARCHAR(20) NOT NULL /* Giáo viên bộ môn */,
+  "MON_HOC" VARCHAR(100) NOT NULL /* Môn học / hoạt động (Âm nhạc, Tiếng Anh...) */,
+  "MA_TIET" VARCHAR(20) /* Tiết trong thời khóa biểu (lưu lại, không ràng buộc) */,
+  "GIO_DAY" VARCHAR(20) /* Giờ dạy (VD: 09:00 - 09:35) */,
+  "NOI_DUNG" TEXT NOT NULL /* Nội dung bài dạy */,
+  "DANH_GIA_CHUNG" VARCHAR(30) /* Đánh giá chung cả lớp (Tốt / Khá / Trung bình / Cần cố gắng) */,
+  "GHI_CHU" TEXT /* Ghi chú */,
+  "NGUOI_GHI" VARCHAR(150) /* Người ghi sổ */,
+  "CAP_NHAT_LUC" DATETIME /* Cập nhật lúc */,
+  CONSTRAINT "PK_MN_NV_SO_TIET_DAY" PRIMARY KEY ("MA_TIET_DAY"),
+  CONSTRAINT "UQ_MN_NV_SO_TIET_DAY_NGAY_DAY_MA_LOP_MA_GIAO_VIEN_MON_HOC" UNIQUE ("NGAY_DAY", "MA_LOP", "MA_GIAO_VIEN", "MON_HOC"),
+  CONSTRAINT "FK_MN_NV_SO_TIET_DAY_1" FOREIGN KEY ("MA_LOP") REFERENCES "MN_DM_LOP_HOC" ("MA_LOP") ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT "FK_MN_NV_SO_TIET_DAY_2" FOREIGN KEY ("MA_GIAO_VIEN") REFERENCES "MN_DM_NHAN_SU" ("MA_NHAN_SU") ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS "MN_NV_TIET_DAY_NHAN_XET" ( /* Nhận xét từng trẻ trong tiết dạy bộ môn */
+  "MA_TIET_DAY" VARCHAR(20) NOT NULL /* Tiết dạy */,
+  "MA_TRE" VARCHAR(20) NOT NULL /* Trẻ */,
+  "MUC_DANH_GIA" VARCHAR(30) /* Nổi bật / Đạt / Cần hỗ trợ */,
+  "NHAN_XET" VARCHAR(255) /* Nhận xét của giáo viên bộ môn */,
+  CONSTRAINT "PK_MN_NV_TIET_DAY_NHAN_XET" PRIMARY KEY ("MA_TIET_DAY", "MA_TRE"),
+  CONSTRAINT "FK_MN_NV_TIET_DAY_NHAN_XET_1" FOREIGN KEY ("MA_TIET_DAY") REFERENCES "MN_NV_SO_TIET_DAY" ("MA_TIET_DAY") ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT "FK_MN_NV_TIET_DAY_NHAN_XET_2" FOREIGN KEY ("MA_TRE") REFERENCES "MN_DM_TRE" ("MA_TRE") ON DELETE CASCADE ON UPDATE CASCADE
+);
+
 CREATE TABLE IF NOT EXISTS "MN_NV_BAO_CAO" ( /* Báo cáo các bộ phận gửi Ban giám hiệu và báo cáo toàn trường */
   "MA_BAO_CAO" VARCHAR(20) NOT NULL /* Mã báo cáo (BCxxx) */,
   "LOAI_BAO_CAO" VARCHAR(30) NOT NULL /* Loại (end_of_day, revenue, school_day...) */,
@@ -500,6 +529,8 @@ CREATE INDEX IF NOT EXISTS "IX_MN_NV_NHAT_KY_TRE_NGAY" ON "MN_NV_NHAT_KY_TRE" ("
 CREATE INDEX IF NOT EXISTS "IX_MN_NV_TIN_NHAN_MA_LOP" ON "MN_NV_TIN_NHAN" ("MA_LOP");
 
 CREATE INDEX IF NOT EXISTS "IX_MN_NV_TIN_NHAN_NGAY_AP_DUNG" ON "MN_NV_TIN_NHAN" ("NGAY_AP_DUNG");
+
+CREATE INDEX IF NOT EXISTS "IX_MN_NV_SO_TIET_DAY_MA_GIAO_VIEN_NGAY_DAY" ON "MN_NV_SO_TIET_DAY" ("MA_GIAO_VIEN", "NGAY_DAY");
 
 CREATE INDEX IF NOT EXISTS "IX_MN_NV_BAO_CAO_NGUOI_LAP" ON "MN_NV_BAO_CAO" ("NGUOI_LAP");
 
