@@ -97,6 +97,34 @@ def test_detail_drawer_and_delete_form(gui_app):
     assert not errors, errors
 
 
+def test_pickup_dialog_lists_parents_and_toggles_buttons(gui_app):
+    """Hộp thoại Người đón hộ: hiện phụ huynh, lưới trống có dòng hướng dẫn, Sửa/Xóa chỉ bật khi chọn dòng."""
+    from kindergarten.people.child import PickupPerson
+    from kindergarten.ui.gui.tabs_people import PickupDialog
+    application, errors = gui_app
+    user = application.system.auth.login("admin", "admin123")
+    user.must_change_password = False
+    application.on_login(user)
+    assert application.main.show_tab("ChildrenTab")
+    tab = application.main.current
+    child = next(c for c in application.system.children.all_sorted() if not c.pickup_persons)
+    dialog = PickupDialog(tab, child)
+    application.root.update()
+    try:
+        assert dialog.m_lbl_empty.winfo_ismapped()
+        assert dialog.m_btn_edit.instate(["disabled"]) and dialog.m_btn_delete.instate(["disabled"])
+        child.add_pickup_person(PickupPerson("Hồ Văn Lộc", "Ông nội", "0977000444"))
+        dialog.reload()
+        dialog.m_fg_list.tree.selection_set("Hồ Văn Lộc")
+        application.root.update()
+        assert not dialog.m_lbl_empty.winfo_ismapped()
+        assert dialog.m_btn_edit.instate(["!disabled"]) and dialog.m_btn_delete.instate(["!disabled"])
+        assert dialog.m_fg_list.tree.set("Hồ Văn Lộc", "c4") == "—"
+    finally:
+        dialog.destroy()
+    assert not errors, errors
+
+
 def test_pick_up_mode_has_no_check_column(gui_app):
     """Đón trẻ: có cột ô tích (đón nhiều trẻ một lượt). Trả trẻ: trả từng trẻ -> không có cột ô tích."""
     application, errors = gui_app

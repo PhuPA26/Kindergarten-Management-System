@@ -202,6 +202,19 @@ class Child(Person):
         key = normalize_spaces(name).casefold()
         return next((p for p in self._pickup_persons if p.full_name.casefold() == key), None)
 
+    def replace_pickup_person(self, name: str, person: PickupPerson) -> PickupPerson:
+        """Sửa thông tin một người đón hộ (giữ nguyên vị trí trong danh sách). Không được trùng họ tên người khác."""
+        if not isinstance(person, PickupPerson):
+            raise ValidationError("Người đón hộ không hợp lệ.")
+        old = self.find_pickup_person(name)
+        if old is None:
+            raise NotFoundError(f"Không có '{name}' trong danh sách người đón hộ của {self.full_name}.")
+        other = self.find_pickup_person(person.full_name)
+        if other is not None and other is not old:
+            raise ValidationError(f"'{person.full_name}' đã có trong danh sách người đón hộ.")
+        self._pickup_persons[self._pickup_persons.index(old)] = person
+        return person
+
     def remove_pickup_person(self, name: str) -> PickupPerson:
         person = self.find_pickup_person(name)
         if person is None:

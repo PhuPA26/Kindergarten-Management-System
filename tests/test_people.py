@@ -3,7 +3,8 @@ from datetime import date
 
 import pytest
 
-from kindergarten.exceptions import DuplicateIdError, InvalidAgeError, KindergartenError, PermissionDeniedError
+from kindergarten.exceptions import (DuplicateIdError, InvalidAgeError, KindergartenError, NotFoundError,
+                                     PermissionDeniedError, ValidationError)
 from kindergarten.people.child import Child, PickupPerson
 
 
@@ -62,6 +63,19 @@ def test_unique_parent_phone(make_parent, make_child):
         make_parent("Lê Văn B", "0905 000 001", "Bố", child_ids=[binh.id])
     wife = make_parent("Phạm Thị C", "0905.000.001", "Mẹ", child_ids=[an.id])
     assert wife.phone == "0905000001"
+
+
+def test_replace_pickup_person_keeps_position_and_rejects_duplicates(make_child):
+    child = make_child("Hồ Thiên Phúc", 5)
+    child.add_pickup_person(PickupPerson("Hồ Văn Lộc", "Ông nội", "0977000444"))
+    child.add_pickup_person(PickupPerson("Lê Thị Hoa", "Bà ngoại", "0977000555"))
+    child.replace_pickup_person("hồ văn lộc", PickupPerson("Hồ Văn Lộc", "Ông nội", "0977000999", "012345678901"))
+    assert [p.phone for p in child.pickup_persons] == ["0977000999", "0977000555"]
+    with pytest.raises(ValidationError):   # đổi tên trùng người đã có
+        child.replace_pickup_person("Hồ Văn Lộc", PickupPerson("Lê Thị Hoa", "Cô", "0977000111"))
+    with pytest.raises(NotFoundError):
+        child.replace_pickup_person("Không Có Ai", PickupPerson("Ai Đó", "Cô", "0977000111"))
+    assert [p.full_name for p in child.pickup_persons] == ["Hồ Văn Lộc", "Lê Thị Hoa"]
 
 
 def test_pickup_verification(system, make_child, make_parent):

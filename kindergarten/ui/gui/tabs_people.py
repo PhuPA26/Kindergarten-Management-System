@@ -5,7 +5,7 @@ import tkinter as tk
 from datetime import date
 from tkinter import messagebox, ttk
 from tkinter.scrolledtext import ScrolledText
-from typing import Any
+from typing import Any, Callable
 
 from ...auth.user import Permission
 from ...health.records import AllergySeverity, NutritionStatus
@@ -16,7 +16,7 @@ from ...utils import (format_date, format_key_values, format_number, format_perc
 from ...exceptions import KindergartenError
 from .base_tab import BaseTab
 from .report_view import ReportView
-from .widgets import COLORS, DataTable, Field, px, stat_card
+from .widgets import COLORS, DataTable, DeleteDialog, Field, FormDialog, icon_font, px, stat_card, tint, ui_font
 
 P = Permission
 
@@ -65,40 +65,169 @@ class DashboardTab(BaseTab):
 
 # =============================================================================
 class PickupDialog(tk.Toplevel):
-    """Quản lý danh sách người đón hộ của một trẻ."""
+    """Quản lý danh sách người đón hộ của một trẻ.
+
+    Bố cục: tiêu đề (tên trẻ, mã, lớp) - phụ huynh được đón mặc định - lưới người được ủy quyền đón hộ
+    (trống thì hiện hướng dẫn) - hàng nút [Đóng] ... [Thêm] [Sửa] [Xóa] như form Master.
+    """
 
     def __init__(self, tab: BaseTab, child: Child) -> None:
         super().__init__(tab)
         self.tab, self.child = tab, child
         self.title(f"Người đón hộ - {child.full_name}")
         self.transient(tab.winfo_toplevel())
-        self.geometry(f"{px(640)}x{px(320)}")
-        self.m_fg_list = DataTable(self, [("Họ tên", 170), ("Quan hệ", 110), ("SĐT", 110), ("CCCD", 120)], height=8)
-        self.m_fg_list.pack(fill="both", expand=True, padx=8, pady=8)
-        bar = ttk.Frame(self, padding=(8, 0, 8, 8))
-        bar.pack(fill="x")
-        ttk.Button(bar, text="Thêm", command=self.add).pack(side="left")
-        ttk.Button(bar, text="Xóa", command=self.remove).pack(side="left", padx=6)
-        ttk.Button(bar, text="Đóng", command=self.destroy).pack(side="right")
+        self.configure(bg=COLORS["card"])
+        self.minsize(px(600), px(420))
+        self._build_header()
+        # hàng nút đặt TRƯỚC lưới (side=bottom) để lưới co giãn không đè mất nút khi cửa sổ thấp
+        self._build_buttons()
+        body = ttk.Frame(self, padding=(px(20), px(14), px(20), 0))
+        body.pack(fill="both", expand=True)
+        self._build_parents(body)
+        head = ttk.Frame(body)
+        head.pack(fill="x", pady=(px(14), px(6)))
+        ttk.Label(head, text="Người được ủy quyền đón hộ", style="Section.TLabel").pack(side="left")
+        self.m_lbl_count = ttk.Label(head, style="Muted.TLabel")
+        self.m_lbl_count.pack(side="right")
+        tk.Label(body, text="ⓘ  Khi trả trẻ, người đến đón phải có đúng họ tên (có dấu) trong danh sách "
+                 "phụ huynh hoặc người đón hộ.", font=ui_font(-1), fg=COLORS["muted"], bg=COLORS["card"],
+                 anchor="w", justify="left", wraplength=px(620)).pack(side="bottom", fill="x", pady=(px(8), px(4)))
+        self.m_fg_list = DataTable(body, [("STT", 44, "center"), ("Họ tên", 180), ("Quan hệ", 110),
+                                          ("Số điện thoại", 120), ("Số CCCD", 130)], height=6)
+        self.m_fg_list.pack(fill="both", expand=True)
+        for bar in self.m_fg_list.winfo_children():   # 5 cột vừa khung - bỏ thanh cuộn ngang
+            if isinstance(bar, ttk.Scrollbar) and str(bar.cget("orient")) == "horizontal":
+                bar.grid_remove()
+        self.m_fg_list.on_select(self._update_buttons)
+        self.m_fg_list.on_double_click(self.edit)
+        self.m_fg_list.tree.bind("<Delete>", lambda _e: self.remove())
+        self.m_lbl_empty = tk.Label(self.m_fg_list.tree, text="Chưa có người đón hộ nào.\n"
+                                    "Bấm “+ Thêm” để ủy quyền ông bà, cô chú… đón trẻ thay phụ huynh.",
+                                    font=ui_font(0), fg=COLORS["muted"], bg="white", justify="center")
+        self.bind("<Escape>", lambda _e: self.destroy())
         self.reload()
+        self.update_idletasks()
+        top = tab.winfo_toplevel()
+        self.geometry(f"{px(680)}x{px(500)}"
+                      f"+{top.winfo_rootx() + max((top.winfo_width() - px(680)) // 2, 0)}"
+                      f"+{top.winfo_rooty() + max((top.winfo_height() - px(500)) // 3, 0)}")
         self.grab_set()
+        self.m_fg_list.tree.focus_set()
 
+    # ------------------------------------------------------------------ dựng giao diện
+    def _build_header(self) -> None:
+        bg = COLORS["primary_soft"]
+        header = tk.Frame(self, bg=bg, padx=px(20), pady=px(12))
+        header.pack(fill="x")
+        tk.Label(header, text="☺", font=icon_font(8), fg=COLORS["primary"], bg=tint(COLORS["primary"], 0.8),
+                 width=3).pack(side="left", padx=(0, px(14)))
+        texts = tk.Frame(header, bg=bg)
+        texts.pack(side="left", fill="x", expand=True)
+        tk.Label(texts, text="Người đón hộ", font=ui_font(4, "bold"), fg=COLORS["navy"], bg=bg).pack(anchor="w")
+        class_text = self.tab.class_name(self.child.class_id) if self.child.class_id else "Chưa xếp lớp"
+        info = f"{self.child.full_name}   ·   Mã trẻ {self.child.id}   ·   {class_text}"
+        tk.Label(texts, text=info, font=ui_font(0), fg=COLORS["label"], bg=bg).pack(anchor="w")
+        tk.Frame(self, bg=COLORS["border"], height=1).pack(fill="x")
+
+    def _build_parents(self, body: ttk.Frame) -> None:
+        """Phụ huynh luôn được đón trẻ - hiện để người dùng biết không cần thêm họ vào danh sách đón hộ."""
+        box = tk.Frame(body, bg=COLORS["stripe"], highlightthickness=1, highlightbackground=COLORS["border"],
+                       padx=px(12), pady=px(8))
+        box.pack(fill="x")
+        tk.Label(box, text="Phụ huynh (được đón mặc định)", font=ui_font(-1, "bold"), fg=COLORS["label"],
+                 bg=COLORS["stripe"]).pack(anchor="w")
+        parents = self.tab.system.parents.parents_of(self.child.id)
+        lines = [f"•  {p.relationship}: {p.full_name}   ·   {p.phone}" for p in parents] \
+            or ["Chưa liên kết phụ huynh - dùng 'Liên kết phụ huynh' ở danh sách trẻ."]
+        for line in lines:
+            tk.Label(box, text=line, font=ui_font(0), fg=COLORS["text"] if parents else COLORS["muted"],
+                     bg=COLORS["stripe"]).pack(anchor="w", pady=(px(2), 0))
+
+    def _build_buttons(self) -> None:
+        bar = ttk.Frame(self, padding=(px(20), px(12)))
+        bar.pack(side="bottom", fill="x")
+        tk.Frame(self, bg=COLORS["border"], height=1).pack(side="bottom", fill="x")   # đường kẻ trên hàng nút
+        ttk.Button(bar, text="Đóng", command=self.destroy).pack(side="left")
+        self.m_btn_delete = ttk.Button(bar, text="Xóa", width=8, command=self.remove)
+        self.m_btn_delete.pack(side="right")
+        self.m_btn_edit = ttk.Button(bar, text="Sửa", width=8, command=self.edit)
+        self.m_btn_edit.pack(side="right", padx=px(6))
+        ttk.Button(bar, text="+ Thêm", width=8, style="Accent.TButton", command=self.add).pack(side="right")
+
+    # ------------------------------------------------------------------ dữ liệu
     def reload(self) -> None:
         persons = self.child.pickup_persons
-        self.m_fg_list.set_rows([[p.full_name, p.relationship, p.phone, p.id_card or "-"] for p in persons],
-                            [p.full_name for p in persons])
+        self.m_fg_list.set_rows([[i, p.full_name, p.relationship, p.phone, p.id_card or "—"]
+                                 for i, p in enumerate(persons, 1)], [p.full_name for p in persons])
+        if persons:
+            self.m_lbl_empty.place_forget()
+        else:
+            self.m_lbl_empty.place(relx=0.5, rely=0.55, anchor="center")
+        self.m_lbl_count.configure(text=f"{len(persons)} người" if persons else "")
+        self._update_buttons()
 
+    def _update_buttons(self) -> None:
+        state = ["!disabled"] if self.m_fg_list.selected_id() else ["disabled"]
+        self.m_btn_edit.state(state)
+        self.m_btn_delete.state(state)
+
+    def _selected(self) -> PickupPerson | None:
+        name = self.m_fg_list.selected_id()
+        return self.child.find_pickup_person(name) if name else None
+
+    @staticmethod
+    def _fields(person: PickupPerson | None = None) -> list[Field]:
+        return [Field("full_name", "Họ tên (có dấu)", default=person.full_name if person else None),
+                Field("relationship", "Quan hệ với trẻ (VD: Bà ngoại)", default=person.relationship if person else None),
+                Field("phone", "Số điện thoại", default=person.phone if person else None),
+                Field("id_card", "Số CCCD (9 hoặc 12 số)", default=person.id_card if person else None,
+                      required=False)]
+
+    def _open_form(self, title: str, person: PickupPerson | None,
+                   submit: Callable[[dict[str, Any]], Any]) -> None:
+        dialog = FormDialog(self, title, self._fields(person), submit)
+        self.wait_window(dialog)
+        self._after_change(dialog.submitted, dialog.result)
+
+    def _after_change(self, changed: bool, person: PickupPerson | None = None) -> None:
+        if changed:
+            self.tab.app.save()
+            self.tab.refresh()
+            self.reload()
+            if person is not None and self.m_fg_list.tree.exists(person.full_name):
+                self.m_fg_list.tree.selection_set(person.full_name)
+                self.m_fg_list.tree.see(person.full_name)
+        if self.winfo_exists():
+            self.grab_set()   # hộp thoại con đã nhả grab khi đóng
+            self.m_fg_list.tree.focus_set()
+
+    # ------------------------------------------------------------------ thao tác
     def add(self) -> None:
-        fields = [Field("full_name", "Họ tên"), Field("relationship", "Quan hệ với trẻ (VD: Bà ngoại)"),
-                  Field("phone", "Số điện thoại"), Field("id_card", "Số CCCD", required=False)]
-        self.tab.form("Thêm người đón hộ", fields, lambda v: self.child.add_pickup_person(PickupPerson(**v)))
-        self.reload()
+        self._open_form("Thêm người đón hộ", None, lambda v: self.child.add_pickup_person(PickupPerson(**v)))
+
+    def edit(self) -> None:
+        person = self._selected()
+        if person is None:
+            return
+        self._open_form(f"Sửa người đón hộ - {person.full_name}", person,
+                        lambda v: self.child.replace_pickup_person(person.full_name, PickupPerson(**v)))
 
     def remove(self) -> None:
-        name = self.m_fg_list.selected_id()
-        if name and messagebox.askyesno("Xác nhận", f"Xóa {name} khỏi danh sách người đón hộ?", parent=self):
-            self.tab.guard(self.child.remove_pickup_person, name)
-            self.reload()
+        person = self._selected()
+        if person is None:
+            return
+        dialog = DeleteDialog(self, "Xóa người đón hộ", [
+            ("Trẻ", f"{self.child.id} - {self.child.full_name}"), ("Họ tên", person.full_name),
+            ("Quan hệ", person.relationship), ("Số điện thoại", person.phone), ("Số CCCD", person.id_card or "—")],
+            note="Sau khi xóa, người này không còn được nhận trẻ khi trả trẻ.")
+        self.wait_window(dialog)
+        if dialog.confirmed:
+            try:
+                self.child.remove_pickup_person(person.full_name)
+            except KindergartenError as exc:
+                messagebox.showerror("Không thực hiện được", exc.message, parent=self)
+                dialog.confirmed = False
+        self._after_change(dialog.confirmed)
 
 
 class ChildrenTab(BaseTab):
