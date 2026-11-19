@@ -103,6 +103,8 @@ class DataTable(ttk.Frame):
         # checkable: thêm cột ô tích đầu bảng - bấm vào ô (hoặc phím Space) để chọn nhiều dòng, không cần Ctrl/Shift
         self.checkable = checkable
         self.row_click_check: Callable[[str], bool] | None = None   # bấm vào dòng cũng tích (nếu hàm trả True)
+        # dòng nào được tích (None = mọi dòng). Dòng không được tích thì không có ô ☐ (VD trẻ vắng ở màn ăn ngủ)
+        self.check_filter: Callable[[str], bool] | None = None
         self._checked: set[str] = set()
         self._check_listeners: list[Callable[[], Any]] = []
         self.tree = ttk.Treeview(self, show="headings", height=height, selectmode=selectmode)
@@ -114,6 +116,8 @@ class DataTable(ttk.Frame):
         hsb.grid(row=1, column=0, sticky="ew")
         self.rowconfigure(0, weight=1)
         self.columnconfigure(0, weight=1)
+        # cuộn ngang bằng touchpad / Shift + lăn chuột: mượt theo điểm ảnh (mặc định của Tk nhảy cả bước lớn)
+        self.tree.bind("<Shift-MouseWheel>", self._on_horizontal_wheel)
         self.tree.tag_configure("odd", background=COLORS["stripe"])
         self.tree.tag_configure("warn", foreground=COLORS["warn"])
         self.tree.tag_configure("ok", foreground=COLORS["ok"])
@@ -122,12 +126,41 @@ class DataTable(ttk.Frame):
             self.set_columns(columns)
         if checkable:
             self.tree.bind("<Button-1>", self._on_click, add="+")
-            self.tree.bind("<KeyPress-space>", lambda _e: self.toggle(self.tree.selection()))
+            self.tree.bind("<KeyPress-space>",
+                           lambda _e: self.toggle(self.tree.selection()) if self.checkable else None)
+
+    # ------------------------------------------------------------------ cuộn ngang mượt
+    HSCROLL_PX_PER_NOTCH = 60   # một nấc lăn chuột (delta 120) = 60 điểm ảnh; touchpad gửi delta nhỏ -> dịch ít
+
+    def _on_horizontal_wheel(self, event: tk.Event) -> str:
+        """Tk 8.6 cuộn ngang bằng `xview scroll [expr {-%D/120}] units`: phép chia nguyên biến mỗi lần vuốt
+        touchpad (delta nhỏ) thành cả một bước lớn hoặc 0 -> giật. Ở đây dịch đúng theo số điểm ảnh của delta."""
+        first, last = self.tree.xview()
+        visible = last - first
+        if visible >= 1 or not event.delta:
+            return "break"
+        content_width = self.tree.winfo_width() / visible   # bề rộng toàn bộ các cột (điểm ảnh)
+        shift = -event.delta / 120 * px(self.HSCROLL_PX_PER_NOTCH)
+        self.tree.xview_moveto(max(0.0, min(1.0 - visible, first + shift / content_width)))
+        return "break"
 
     # ------------------------------------------------------------------ ô tích chọn nhiều dòng
+    def set_checkable(self, checkable: bool) -> None:
+        """Bật / tắt cột ô tích khi đang chạy (VD: đón trẻ tích nhiều trẻ, trả trẻ thì từng trẻ một - không có ô tích).
+        Bảng phải được tạo với checkable=True để có sẵn xử lý bấm chuột."""
+        if checkable == self.checkable:
+            return
+        self.checkable = checkable
+        self._checked.clear()
+        self.tree.delete(*self.tree.get_children())
+        self.set_columns(self._base_columns)
+        self._notify()
+
     def _on_click(self, event: tk.Event) -> str | None:
+        if not self.checkable:
+            return None
         if self.tree.identify_region(event.x, event.y) == "heading" and self.tree.identify_column(event.x) == "#1":
-            visible = list(self.tree.get_children())
+            visible = [i for i in self.tree.get_children() if self.can_check(i)]
             self.set_checked([] if all(i in self._checked for i in visible) else visible)
             return "break"
         row = self.tree.identify_row(event.y)
@@ -140,18 +173,27 @@ class DataTable(ttk.Frame):
             self.toggle([row])   # bấm vào bất kỳ ô nào của dòng = tích / bỏ tích; dòng vẫn được chọn như thường
         return None
 
+    def can_check(self, iid: str) -> bool:
+        return self.check_filter is None or self.check_filter(iid)
+
+    def _box(self, iid: str) -> str:
+        if not self.can_check(iid):
+            return ""
+        return self.CHECKED if iid in self._checked else self.UNCHECKED
+
     def _paint(self, iid: str) -> None:
         if self.tree.exists(iid):
-            self.tree.set(iid, "c0", self.CHECKED if iid in self._checked else self.UNCHECKED)
+            self.tree.set(iid, "c0", self._box(iid))
 
     def toggle(self, ids: Sequence[str]) -> None:
         for iid in ids:
-            self._checked.symmetric_difference_update({iid})
-            self._paint(iid)
+            if self.can_check(iid):
+                self._checked.symmetric_difference_update({iid})
+                self._paint(iid)
         self._notify()
 
     def set_checked(self, ids: Sequence[str]) -> None:
-        self._checked = {i for i in ids if self.tree.exists(i)}
+        self._checked = {i for i in ids if self.tree.exists(i) and self.can_check(i)}
         for iid in self.tree.get_children():
             self._paint(iid)
         self._notify()
@@ -170,6 +212,7 @@ class DataTable(ttk.Frame):
 
     def set_columns(self, columns: Sequence[tuple]) -> None:
         """columns: [(tiêu đề, độ rộng[, căn lề 'w'|'e'|'center'])]. Bấm tiêu đề cột để sắp xếp (U14)."""
+        self._base_columns = list(columns)
         if self.checkable:
             columns = [(self.UNCHECKED, 34, "center")] + list(columns)
         ids = [f"c{i}" for i in range(len(columns))]
@@ -218,11 +261,12 @@ class DataTable(ttk.Frame):
         self.tree.delete(*self.tree.get_children())
         if self.checkable:
             new_ids = {str(ids[i]) if ids else str(i) for i in range(len(rows))}
-            self._checked &= new_ids   # giữ ô đã tích qua các lần làm mới
+            # giữ ô đã tích qua các lần làm mới (bỏ dòng đã mất / không còn được tích)
+            self._checked = {i for i in self._checked & new_ids if self.can_check(i)}
         for index, row in enumerate(rows):
             iid = str(ids[index]) if ids else str(index)
             if self.checkable:
-                row = [self.CHECKED if iid in self._checked else self.UNCHECKED] + list(row)
+                row = [self._box(iid)] + list(row)
             row_tags = ["odd"] if index % 2 else []
             if tags and tags[index]:
                 row_tags.append(tags[index])

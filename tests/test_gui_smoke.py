@@ -97,6 +97,89 @@ def test_detail_drawer_and_delete_form(gui_app):
     assert not errors, errors
 
 
+def test_pick_up_mode_has_no_check_column(gui_app):
+    """Đón trẻ: có cột ô tích (đón nhiều trẻ một lượt). Trả trẻ: trả từng trẻ -> không có cột ô tích."""
+    application, errors = gui_app
+    user = application.system.auth.login("gv.nhung", "giaovien123")
+    user.must_change_password = False
+    application.on_login(user)
+    assert application.main.show_tab("CheckInOutTab")
+    tab = application.main.current
+    table = tab.m_fg_list
+    for mode, has_check in (("in", True), ("out", False), ("in", True)):
+        tab.mode.set(mode)
+        tab._mode_changed()
+        application.root.update()
+        headings = [table.tree.heading(c, "text") for c in table.tree["columns"]]
+        assert (headings[0] == table.UNCHECKED) is has_check, (mode, headings)
+        assert headings[-1] == "Ghi chú"
+    assert not errors, errors
+
+
+def test_daily_log_only_present_children_can_be_ticked(gui_app):
+    """Ăn ngủ - sinh hoạt: trẻ vắng / chưa đón không có ô tích, 'chọn tất cả' chỉ tích trẻ có mặt."""
+    from datetime import date, timedelta
+    from kindergarten.utils import format_date
+    application, errors = gui_app
+    system = application.system
+    user = system.auth.login("gv.nhung", "giaovien123")
+    user.must_change_password = False
+    application.on_login(user)
+    assert application.main.show_tab("DailyLogTab")
+    tab = application.main.current
+    class_id = system.teacher_of(user).homeroom_class_id
+    day = date.today() - timedelta(days=1)   # ngày học gần nhất có cả trẻ có mặt lẫn trẻ vắng
+    for _ in range(60):
+        rows = system.daily.class_day(class_id, day) if system.calendar.is_school_day(day) else []
+        present = {r["child"].id for r in rows if r["record"] is not None and r["record"].is_present}
+        if present and len(present) < len(rows):
+            break
+        day -= timedelta(days=1)
+    else:
+        pytest.skip("Dữ liệu mẫu không có ngày vừa có trẻ có mặt vừa có trẻ vắng")
+    tab.day_var.set(format_date(day))
+    tab.refresh()
+    application.root.update()
+    table = tab.m_fg_list
+    absent = [i for i in table.all_ids() if i not in present]
+    assert all(table.tree.set(i, "c0") == "" for i in absent)          # trẻ vắng: không có ô tích
+    assert all(table.tree.set(i, "c0") == table.UNCHECKED for i in present)
+    table.set_checked(table.all_ids())                                   # như bấm ☐ ở tiêu đề
+    assert set(table.checked_ids()) == present
+    table.toggle(absent)
+    assert set(table.checked_ids()) == present
+    assert not errors, errors
+
+
+def test_horizontal_touchpad_scroll_is_smooth(shared_root):
+    """Vuốt ngang (Shift + lăn / touchpad, delta nhỏ) dịch bảng ít một theo điểm ảnh, không nhảy cả bước."""
+    from types import SimpleNamespace
+    from kindergarten.ui.gui.widgets import DataTable
+    window = tk.Toplevel(shared_root)
+    window.geometry("320x200")
+    table = DataTable(window, [(f"Cột {i}", 150) for i in range(8)])
+    table.pack(fill="both", expand=True)
+    table.set_rows([[f"ô {r}-{i}" for i in range(8)] for r in range(5)])
+    window.update()
+    try:
+        first, last = table.tree.xview()
+        assert last - first < 1                      # bảng rộng hơn khung -> cuộn ngang được
+        content = table.tree.winfo_width() / (last - first)
+        steps = []
+        for _ in range(4):                           # 4 lần vuốt nhỏ sang phải (delta -30 như touchpad)
+            before = table.tree.xview()[0]
+            table._on_horizontal_wheel(SimpleNamespace(delta=-30))
+            window.update()
+            steps.append((table.tree.xview()[0] - before) * content)
+        assert all(0 < s < 40 for s in steps), steps  # mỗi lần dịch vài chục điểm ảnh, đều nhau
+        before = table.tree.xview()[0]
+        table._on_horizontal_wheel(SimpleNamespace(delta=30))   # vuốt ngược lại
+        window.update()
+        assert table.tree.xview()[0] < before
+    finally:
+        window.destroy()
+
+
 class FakeUnsavedTab:
     """Màn hình còn dữ liệu sửa dở (giống Điểm danh chưa lưu)."""
     title = "Điểm danh"

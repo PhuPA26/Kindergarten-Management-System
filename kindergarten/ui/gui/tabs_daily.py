@@ -228,9 +228,10 @@ class CheckInOutTab(ClassDayMixin, BaseTab):
         for button in shown:
             button.pack(side="left", padx=(0, 6), before=self.m_lbl_summary)
         self.m_lbl_hint.configure(text="Bấm vào dòng của trẻ để tích chọn (bấm ☐ ở tiêu đề = chọn / bỏ tất cả)"
-                                  if checking_in else "Chọn trẻ rồi bấm 'Trả trẻ' (hoặc nháy đúp vào dòng)")
-        if not checking_in:
-            self.m_fg_list.set_checked([])
+                                  if checking_in else "Trả từng trẻ: chọn một trẻ rồi bấm 'Trả trẻ' "
+                                                      "(hoặc nháy đúp vào dòng)")
+        # đón trẻ: tích nhiều trẻ rồi đón một lượt; trả trẻ: từng trẻ một (xác nhận người đón) -> không có cột ô tích
+        self.m_fg_list.set_checkable(checking_in)
         self._update_count()
         if not class_id:
             self.m_fg_list.set_rows([])
@@ -350,9 +351,13 @@ class DailyLogTab(ClassDayMixin, BaseTab):
                                       ("Bữa xế", 80), ("Giấc ngủ", 120), ("Tâm trạng", 85), ("Hoạt động / ghi chú", 230),
                                       ("Gửi PH", 60, "center"), ("PH xem / phản hồi", 200)], checkable=True)
         self.m_fg_list.pack(fill="both", expand=True)
-        self.m_fg_list.on_double_click(self.edit)
+        # chỉ trẻ CÓ MẶT mới có ô tích (trẻ vắng / chưa đón không có nhật ký ăn ngủ); bấm vào dòng là tích luôn
+        self.present: set[str] = set()
+        self.m_fg_list.check_filter = lambda child_id: child_id in self.present
+        self.m_fg_list.row_click_check = lambda child_id: child_id in self.present
+        self.m_fg_list.on_double_click(self._edit_row)
         actions = self.bar(pady=(8, 0))
-        self.button(actions, "Cập nhật trẻ đang chọn", self.edit, P.DAILY_LOG, style="Accent.TButton")
+        self.button(actions, "Cập nhật các trẻ đã tích", self.edit, P.DAILY_LOG, style="Accent.TButton")
         self.button(actions, "Điền nhanh (ăn hết, ngủ ngon) cho trẻ chưa có", self.fill_defaults, P.DAILY_LOG)
         self.button(actions, "Gửi nhật ký cho phụ huynh", self.send, P.DAILY_LOG)
         self.button(actions, "Xem chi tiết", self.view)
@@ -369,7 +374,9 @@ class DailyLogTab(ClassDayMixin, BaseTab):
             return
         rows, ids, tags = [], [], []
         sent = total = 0
-        for row in self.system.daily.class_day(class_id, day):
+        day_rows = self.system.daily.class_day(class_id, day)
+        self.present = {r["child"].id for r in day_rows if r["record"] is not None and r["record"].is_present}
+        for row in day_rows:
             child, record, log = row["child"], row["record"], row["log"]
             if record is None or not record.is_present:
                 rows.append([child.id, child.full_name, "", "", "", "", "",
@@ -394,12 +401,29 @@ class DailyLogTab(ClassDayMixin, BaseTab):
         self.m_fg_list.set_rows(rows, ids, tags)
         self.m_lbl_info.configure(text=f"{weekday_name(day)} {format_date(day)} - đã gửi {sent}/{total} trẻ có mặt")
 
-    def edit(self) -> None:
-        ids = self.m_fg_list.checked_ids()
+    def _edit_row(self) -> None:
+        """Nháy đúp vào một trẻ: cập nhật riêng trẻ đó (trẻ vắng thì báo không có nhật ký)."""
+        child_id = self.m_fg_list.selected_id()
+        if child_id and child_id not in self.present:
+            self._absent_warning(child_id)
+            return
+        self.edit([child_id] if child_id else None)
+
+    def _absent_warning(self, child_id: str) -> None:
+        name = self.system.children.get(child_id).full_name
+        messagebox.showwarning("Trẻ không có mặt", f"{name} không có mặt hôm đó nên không có nhật ký ăn ngủ.\n"
+                               "Hãy đón trẻ / điểm danh trước.", parent=self)
+
+    def edit(self, ids: list[str] | None = None) -> None:
+        ids = ids or self.m_fg_list.checked_ids()
         day = self._day()
+        if len(ids) == 1 and ids[0] not in self.present:   # đang chọn (không tích) một trẻ vắng
+            self._absent_warning(ids[0])
+            return
+        ids = [i for i in ids if i in self.present]
         if not ids or day is None:
-            messagebox.showwarning("Chưa chọn", "Hãy tích ô ☐ đầu dòng một hoặc nhiều trẻ (cùng mức ăn ngủ).",
-                                   parent=self)
+            messagebox.showwarning("Chưa chọn", "Hãy bấm vào dòng của một hoặc nhiều trẻ có mặt để tích chọn "
+                                   "(các trẻ cùng mức ăn ngủ), rồi bấm 'Cập nhật các trẻ đã tích'.", parent=self)
             return
         first = self.system.daily.log_of(ids[0], day)
         meals = first.meals if first else {}
@@ -425,8 +449,9 @@ class DailyLogTab(ClassDayMixin, BaseTab):
             return len(ids)
 
         names = ", ".join(self.system.children.get(i).full_name for i in ids[:3]) + ("..." if len(ids) > 3 else "")
-        self.form(f"Ăn ngủ ngày {format_date(day)}: {names}", fields, submit,
-                  success=lambda n: f"Đã cập nhật {n} trẻ. Bấm 'Gửi nhật ký cho phụ huynh' khi xong.")
+        if self.form(f"Ăn ngủ ngày {format_date(day)}: {names}", fields, submit,
+                     success=lambda n: f"Đã cập nhật {n} trẻ. Bấm 'Gửi nhật ký cho phụ huynh' khi xong."):
+            self.m_fg_list.set_checked([])   # cập nhật xong thì bỏ tích để chọn nhóm trẻ tiếp theo
 
     def fill_defaults(self) -> None:
         class_id, day = self._class_id(), self._day()
