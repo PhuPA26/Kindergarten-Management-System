@@ -1,7 +1,9 @@
 __pycache__/
 *.pyc
 .pytest_cache/
-data/
+# data/: chỉ đưa lên file CSDL SQLite có dữ liệu mẫu; bỏ qua bản sao lưu, file tạm (-wal, -shm), JSON cũ
+data/*
+!data/ql_mam_non.db
 exports/
 logs/
 env/
