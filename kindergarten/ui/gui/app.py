@@ -85,6 +85,9 @@ SIDEBAR_GROUPS: list[tuple[str, list[str]]] = [
 ]
 # Màn hình chính của từng phân hệ (nút Thoát của form quay về đây)
 HOME_TABS = ["DashboardTab", "OperationsTab", "LessonTab", "ParentTodayTab", "FinanceTab"]
+# Chức năng cha -> các chức năng con (VD: Vận hành hôm nay -> Đón trả, Điểm danh, Ăn ngủ...). Phân hệ có chức năng
+# cha thì chức năng con ẩn khỏi menu trái, mở từ chức năng cha và có nút "Quay lại" về chức năng cha.
+SUB_FUNCTIONS: dict[str, tuple[str, ...]] = {cls.__name__: cls.sub_tabs for cls in TAB_CLASSES if cls.sub_tabs}
 
 
 class LoginFrame(ttk.Frame):
@@ -326,8 +329,13 @@ class MainFrame(ttk.Frame):
                     self.groups.append(group)
         # menu trái: nhóm theo công việc, tên ngắn gọn (mã F1.x vẫn hiện ở đường dẫn trên tiêu đề form)
         index_of = {type(tab).__name__: i for i, tab in enumerate(self.tabs)}
+        # chức năng con -> chức năng cha (chỉ khi phân hệ có cả hai; VD bảo vệ không có Vận hành hôm nay thì Đón -
+        # trả trẻ vẫn là mục riêng trên menu)
+        self.parent_of: dict[int, int] = {
+            index_of[child]: index_of[parent] for parent, children in SUB_FUNCTIONS.items() if parent in index_of
+            for child in children if child in index_of}
         for group, names in SIDEBAR_GROUPS:
-            present = [n for n in names if n in index_of]
+            present = [n for n in names if n in index_of and index_of[n] not in self.parent_of]
             if not present:
                 continue
             self.sidebar.add_group(group)
@@ -395,9 +403,11 @@ class MainFrame(ttk.Frame):
         self.select_tab(home)
 
     def select_tab(self, index: int) -> None:
-        """Mở một màn hình từ menu trái / thanh menu / Ctrl+N: bắt đầu lại lịch sử."""
+        """Mở một màn hình từ menu trái / thanh menu / Ctrl+N: bắt đầu lại lịch sử.
+        Chức năng con mở thẳng (Ctrl+N, thanh menu) vẫn có nút Quay lại về chức năng cha."""
         if 0 <= index < len(self.tabs):
-            self._navigate(index, [])
+            parent = self.parent_of.get(index)
+            self._navigate(index, [] if parent is None else [parent])
 
     def show_tab(self, class_name: str) -> bool:
         """Chuyển sang màn hình khác từ trong một chức năng: nhớ màn hình hiện tại để bấm Quay lại."""
@@ -439,12 +449,17 @@ class MainFrame(ttk.Frame):
                 return False
             self.current.pack_forget()
         close_drawer(self.right)   # đổi màn hình thì đóng khung báo cáo đang mở
+        tab.fill_sub_functions({type(t).__name__: t for t in self.tabs})
         tab.pack(fill="both", expand=True)
         self.current = tab
-        self.sidebar.set_active(index)
+        parent = self.parent_of.get(index)
+        self.sidebar.set_active(index if parent is None else parent)   # chức năng con: sáng mục của chức năng cha
         self.m_lbl_page_title.configure(text=tab.title)
         code = FORM_CODES.get(type(tab).__name__, "")
-        self.m_lbl_crumb.configure(text=f"{self.app.system.auth.current_user.portal}   ›   {self.groups[index]}   ›   {code}")
+        path = [self.app.system.auth.current_user.portal, self.groups[index]]
+        if parent is not None:
+            path.append(self.tabs[parent].title)
+        self.m_lbl_crumb.configure(text="   ›   ".join(path + [code]))
         self.winfo_toplevel().title(f"{APP_NAME} - {tab.title} [{code}]")
         try:
             tab.refresh()

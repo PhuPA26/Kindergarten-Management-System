@@ -242,6 +242,8 @@ class ReportInboxTab(BaseTab):
     title = "Báo cáo nhận được"
     group = "Báo cáo"
     permission = P.REVIEW_REPORTS
+    # Báo cáo toàn trường được lập từ các báo cáo nhận được (nút "Dùng để lập báo cáo toàn trường")
+    sub_tabs = ("SchoolReportTab",)
 
     def build(self) -> None:
         bar = self.bar()

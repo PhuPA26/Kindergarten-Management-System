@@ -27,8 +27,11 @@ P = Permission
 class FinanceTab(BaseTab):
     title = "Học phí"
     permission = P.MANAGE_FINANCE
+    # Dịch vụ (bán trú, năng khiếu...) là khoản thu trên hóa đơn học phí: mở từ Học phí, có nút Quay lại
+    sub_tabs = ("ServicesTab",)
 
     def build(self) -> None:
+        self.m_fra_sub = self.sub_function_bar("Chức năng con:", pady=(0, 8))
         bar = self.bar()
         ttk.Label(bar, text="Tháng (mm/yyyy):").pack(side="left")
         today = date.today()

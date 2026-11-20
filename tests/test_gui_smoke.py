@@ -71,8 +71,147 @@ def test_every_form_of_every_subsystem_opens(gui_app, username, password):
         assert FORM_CODES[type(tab).__name__].startswith("frm")   # mỗi form có mã theo quy ước đặt tên
     main.go_home()
     application.root.update()
-    assert set(main.sidebar.items) == set(range(len(main.tabs)))   # mọi form đều có trên menu trái
+    # mọi form đều có trên menu trái, trừ chức năng con (mở từ chức năng cha, vd Vận hành hôm nay)
+    assert set(main.sidebar.items) | set(main.parent_of) == set(range(len(main.tabs)))
+    assert not set(main.sidebar.items) & set(main.parent_of)
+    assert all(parent in main.sidebar.items for parent in main.parent_of.values())
     assert not errors, f"{username}: {errors}"
+
+
+def test_daily_work_is_sub_function_of_operations(gui_app):
+    """GV chủ nhiệm: Đón trả, Điểm danh... không nằm ngang hàng Vận hành hôm nay trên menu trái; mở từ Vận hành hôm
+    nay thì có nút Quay lại về Vận hành hôm nay. Bảo vệ không có Vận hành hôm nay -> Đón trả vẫn là mục riêng."""
+    application, errors = gui_app
+    user = application.system.auth.login("gv.nhung", "giaovien123")
+    user.must_change_password = False
+    application.on_login(user)
+    main = application.main
+    names = {type(tab).__name__: i for i, tab in enumerate(main.tabs)}
+    operations = names["OperationsTab"]
+    for child in ("CheckInOutTab", "AttendanceTab", "DailyLogTab", "ParentContactTab"):
+        assert names[child] not in main.sidebar.items and main.parent_of[names[child]] == operations
+    assert main.current is main.tabs[operations] and not main.history
+    main.current.open_step("AttendanceTab")                     # bấm "Mở" ở thẻ bước 2
+    application.root.update()
+    assert type(main.current).__name__ == "AttendanceTab"
+    assert main.history == [operations] and main.m_btn_back.winfo_ismapped()
+    assert main.sidebar.active == operations                     # menu trái vẫn sáng mục Vận hành hôm nay
+    main.go_back()
+    application.root.update()
+    assert main.current is main.tabs[operations] and not main.history
+    assert not main.m_btn_back.winfo_ismapped()
+    main.select_tab(names["DailyLogTab"])                       # mở thẳng (Ctrl+N) vẫn quay lại được chức năng cha
+    assert main.history == [operations]
+    assert not errors, errors
+
+    application.show_login()
+    guard = application.system.auth.login("nv.hung", "nhanvien123")
+    guard.must_change_password = False
+    application.on_login(guard)
+    main = application.main
+    index = next(i for i, tab in enumerate(main.tabs) if type(tab).__name__ == "CheckInOutTab")
+    assert index in main.sidebar.items and not main.parent_of
+    assert not errors, errors
+
+
+def test_parent_views_are_sub_functions_of_today(gui_app):
+    """Phụ huynh: Nhật ký, Trao đổi, Thực đơn, Sức khỏe là chức năng con của Hôm nay của con (mở từ hàng nút, có
+    Quay lại); Học phí & dịch vụ vẫn là mục riêng. BGH: Lập báo cáo toàn trường là con của Báo cáo nhận được."""
+    application, errors = gui_app
+    user = application.system.auth.login("ph.mai", "phuhuynh123")
+    user.must_change_password = False
+    application.on_login(user)
+    main = application.main
+    names = {type(tab).__name__: i for i, tab in enumerate(main.tabs)}
+    today = names["ParentTodayTab"]
+    for child in ("ParentDiaryTab", "ParentMessagesTab", "ParentMenuTab", "ParentHealthTab"):
+        assert main.parent_of[names[child]] == today and names[child] not in main.sidebar.items
+    assert names["ParentFeesTab"] in main.sidebar.items
+    assert main.current is main.tabs[today]
+    buttons = [w for w in main.current.m_fra_sub.winfo_children() if isinstance(w, tk.ttk.Button)]
+    assert [b.cget("text") for b in buttons] == ["Nhật ký ăn ngủ", "Trao đổi với cô", "Thực đơn tuần",
+                                                  "Sức khỏe & chuyên cần"]
+    buttons[0].invoke()
+    assert type(main.current).__name__ == "ParentDiaryTab" and main.history == [today]
+    main.go_back()
+    assert main.current is main.tabs[today]
+    assert not errors, errors
+
+    application.show_login()
+    login_admin(application)
+    main = application.main
+    names = {type(tab).__name__: i for i, tab in enumerate(main.tabs)}
+    assert main.parent_of[names["SchoolReportTab"]] == names["ReportInboxTab"]
+    main.select_tab(names["ReportInboxTab"])
+    main.current.to_school_report()
+    assert type(main.current).__name__ == "SchoolReportTab" and main.history == [names["ReportInboxTab"]]
+    assert main.sidebar.active == names["ReportInboxTab"]
+    assert not errors, errors
+
+
+def test_jump_between_functions_has_back_button(gui_app):
+    application, errors = gui_app
+    login_admin(application)
+    main = application.main
+    start = next(i for i, tab in enumerate(main.tabs) if type(tab).__name__ == "ChildrenTab")
+    main.select_tab(start)                                       # mở từ menu trái
+    assert not main.history
+    assert main.show_tab("ParentsTab")                           # mở chức năng khác (không phải con) từ Trẻ
+    assert main.history == [start]
+    main.go_back()
+    assert main.tabs.index(main.current) == start and not main.history
+    assert not errors, errors
+
+
+@pytest.mark.parametrize("username,parent,children,top_level", [
+    ("admin", "ClassesTab", ["CalendarTab", "TimetableTab"], []),
+    ("admin", "FinanceTab", ["ServicesTab"], []),
+    ("ketoan", "FinanceTab", ["ServicesTab"], []),
+    ("gv.tuan", None, [], ["TimetableTab"]),      # GV không có màn hình Lớp học -> TKB vẫn là mục riêng
+])
+def test_catalog_sub_functions(gui_app, username, parent, children, top_level):
+    application, errors = gui_app
+    password = {u: p for u, p, _d in DEMO_ACCOUNTS}[username]
+    user = application.system.auth.login(username, password)
+    user.must_change_password = False
+    application.on_login(user)
+    main = application.main
+    names = {type(tab).__name__: i for i, tab in enumerate(main.tabs)}
+    for name in top_level:
+        assert names[name] in main.sidebar.items and names[name] not in main.parent_of
+    if parent is None:
+        return
+    main.select_tab(names[parent])
+    buttons = [w for w in main.current.m_fra_sub.winfo_children() if isinstance(w, tk.ttk.Button)]
+    assert [b.cget("text") for b in buttons] == [main.tabs[names[c]].title for c in children]
+    for child, button in zip(children, buttons):
+        assert names[child] not in main.sidebar.items and main.parent_of[names[child]] == names[parent]
+        button.invoke()
+        assert type(main.current).__name__ == child and main.history == [names[parent]]
+        assert main.sidebar.active == names[parent]
+        main.go_back()
+        assert main.current is main.tabs[names[parent]]
+    assert not errors, errors
+
+
+def test_login_enter_on_username_moves_to_password(gui_app, monkeypatch):
+    """Enter ở ô tên đăng nhập khi chưa gõ mật khẩu: chuyển xuống ô mật khẩu, không báo sai, không cộng lần sai."""
+    application, errors = gui_app
+    frame = next(w for w in application.container.winfo_children() if isinstance(w, gui.LoginFrame))
+    attempts: list[tuple] = []
+    real_login = application.system.auth.login
+    monkeypatch.setattr(application.system.auth, "login", lambda *a: attempts.append(a) or real_login(*a))
+    frame.username.set("admin")
+    frame.password.set("")
+    frame._username_return()   # Enter ở ô tên đăng nhập (cửa sổ test bị ẩn nên gọi thẳng hàm gắn với phím)
+    assert not attempts and frame.m_lbl_message.cget("text") == ""
+    frame.login()              # bấm nút Đăng nhập khi chưa có mật khẩu
+    assert not attempts and "sai" not in frame.m_lbl_message.cget("text").lower()
+    frame.password.set("sai-mat-khau")
+    frame._username_return()   # đã có mật khẩu -> Enter là đăng nhập
+    assert attempts and frame.m_lbl_message.cget("text") and frame.password.get() == ""
+    assert application.main is None
+    assert not errors, errors
 
 
 def test_detail_drawer_and_delete_form(gui_app):
@@ -271,38 +410,4 @@ def test_logout_asks_to_save_unsaved_data(gui_app, monkeypatch, answer):
     else:
         assert tab.discarded == 1 and not saves and reloads
         assert application.system.auth.current_user is None
-    assert not errors, errors
-
-
-def test_login_enter_on_username_moves_to_password(gui_app, monkeypatch):
-    """Enter ở ô tên đăng nhập khi chưa gõ mật khẩu: chuyển xuống ô mật khẩu, không báo sai, không cộng lần sai."""
-    application, errors = gui_app
-    frame = next(w for w in application.container.winfo_children() if isinstance(w, gui.LoginFrame))
-    attempts: list[tuple] = []
-    real_login = application.system.auth.login
-    monkeypatch.setattr(application.system.auth, "login", lambda *a: attempts.append(a) or real_login(*a))
-    frame.username.set("admin")
-    frame.password.set("")
-    frame._username_return()   # Enter ở ô tên đăng nhập (cửa sổ test bị ẩn nên gọi thẳng hàm gắn với phím)
-    assert not attempts and frame.m_lbl_message.cget("text") == ""
-    frame.login()              # bấm nút Đăng nhập khi chưa có mật khẩu
-    assert not attempts and "sai" not in frame.m_lbl_message.cget("text").lower()
-    frame.password.set("sai-mat-khau")
-    frame._username_return()   # đã có mật khẩu -> Enter là đăng nhập
-    assert attempts and frame.m_lbl_message.cget("text") and frame.password.get() == ""
-    assert application.main is None
-    assert not errors, errors
-
-
-def test_jump_between_functions_has_back_button(gui_app):
-    application, errors = gui_app
-    login_admin(application)
-    main = application.main
-    start = next(i for i, tab in enumerate(main.tabs) if type(tab).__name__ == "ChildrenTab")
-    main.select_tab(start)                                       # mở từ menu trái
-    assert not main.history
-    assert main.show_tab("ParentsTab")                           # mở chức năng khác (không phải con) từ Trẻ
-    assert main.history == [start]
-    main.go_back()
-    assert main.tabs.index(main.current) == start and not main.history
     assert not errors, errors

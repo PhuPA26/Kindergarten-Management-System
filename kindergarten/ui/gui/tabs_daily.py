@@ -76,6 +76,8 @@ class OperationsTab(BaseTab):
     permission = P.VIEW_OPERATIONS
     STEP_TABS = {"checkin": "CheckInOutTab", "attendance": "AttendanceTab", "dailylog": "DailyLogTab",
                  "contact": "ParentContactTab", "pickup": "CheckInOutTab", "report": "__report__"}
+    # Công việc hằng ngày là chức năng con của Vận hành hôm nay: không có mục riêng trên menu trái, mở từ đây
+    sub_tabs = ("CheckInOutTab", "AttendanceTab", "DailyLogTab", "ParentContactTab", "HealthTab", "MenuTab")
 
     def build(self) -> None:
         bar = self.bar()
@@ -103,6 +105,7 @@ class OperationsTab(BaseTab):
             button = ttk.Button(card, text="Mở", command=lambda t=target: self.open_step(t))
             button.pack(pady=(0, 8))
             self.cards.append({"frame": card, "phase": phase, "progress": progress, "color": color})
+        self.m_fra_sub = self.sub_function_bar("Công việc hằng ngày:")
         actions = self.bar(pady=(4, 4))
         self.m_lbl_report_title = ttk.Label(actions, style="Section.TLabel")
         self.m_lbl_report_title.pack(side="left")

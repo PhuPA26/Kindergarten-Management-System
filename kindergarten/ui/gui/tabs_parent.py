@@ -78,10 +78,13 @@ class ParentTab(BaseTab):
 # =============================================================================
 class ParentTodayTab(ParentTab):
     title = "Hôm nay của con"
+    # Nhật ký, trao đổi, thực đơn, sức khỏe là phần xem chi tiết của "Hôm nay của con" -> chức năng con
+    sub_tabs = ("ParentDiaryTab", "ParentMessagesTab", "ParentMenuTab", "ParentHealthTab")
 
     def build(self) -> None:
         bar = self.child_bar()
         self.button(bar, "Làm mới", self.refresh, side="right")
+        self.m_fra_sub = self.sub_function_bar("Xem thêm về con:")
         self.m_txt_content = ReportView(self, height=22)
         self.m_txt_content.configure(highlightthickness=1, highlightbackground=COLORS["border"])
         self.m_txt_content.pack(fill="both", expand=True)

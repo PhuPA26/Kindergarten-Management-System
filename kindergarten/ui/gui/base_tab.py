@@ -24,6 +24,9 @@ if TYPE_CHECKING:
 class BaseTab(ttk.Frame):
     title = "Tab"
     permission: Permission | None = None
+    # Chức năng con (tên lớp tab): nếu phân hệ có màn hình này thì các chức năng con không có mục riêng trên menu
+    # trái, chỉ mở từ màn hình này và có nút "Quay lại".
+    sub_tabs: tuple[str, ...] = ()
 
     def __init__(self, master: tk.Misc, app: "KindergartenApp") -> None:
         super().__init__(master, padding=(px(18), px(14)))
@@ -49,6 +52,27 @@ class BaseTab(ttk.Frame):
         frame = ttk.Frame(master or self)
         frame.pack(fill="x", pady=pady)
         return frame
+
+    def sub_function_bar(self, label: str, master: tk.Misc | None = None,
+                         pady: tuple[int, int] = (2, 8)) -> ttk.Frame:
+        """Hàng nút mở các chức năng con (sub_tabs). Nút được tạo khi màn hình mở lần đầu (fill_sub_functions) -
+        lúc đó mới biết phân hệ đang đăng nhập có những màn hình nào."""
+        self._sub_bar = self.bar(master, pady)
+        self._sub_label = label
+        return self._sub_bar
+
+    def fill_sub_functions(self, tabs: dict[str, "BaseTab"]) -> None:
+        bar = getattr(self, "_sub_bar", None)
+        if bar is None or bar.winfo_children():
+            return
+        present = [name for name in self.sub_tabs if name in tabs]
+        if not present:
+            bar.pack_forget()
+            return
+        ttk.Label(bar, text=self._sub_label, style="Section.TLabel").pack(side="left", padx=(0, px(8)))
+        for name in present:
+            ttk.Button(bar, text=tabs[name].title, cursor="hand2",
+                       command=lambda n=name: self.app.show_tab(n)).pack(side="left", padx=(0, px(6)))
 
     def button(self, bar: tk.Misc, text: str, command: Callable[[], Any], permission: Permission | None = None,
                side: str = "left", style: str = "TButton") -> ttk.Button:

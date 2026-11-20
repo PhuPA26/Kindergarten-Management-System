@@ -193,8 +193,12 @@ class EmployeesTab(BaseTab):
 class ClassesTab(BaseTab):
     title = "Lớp học"
     permission = P.MANAGE_CLASSES
+    # Lịch năm học (ngày học / nghỉ) và thời khóa biểu của các lớp: mở từ Lớp học, có nút Quay lại.
+    # K03: lịch năm học vẫn dùng chung cho điểm danh, tiền ăn, thực đơn, dashboard - chỉ đổi chỗ mở trên menu.
+    sub_tabs = ("CalendarTab", "TimetableTab")
 
     def build(self) -> None:
+        self.m_fra_sub = self.sub_function_bar("Chức năng con:", pady=(0, 8))
         self.m_lbl_notice = ttk.Label(self, style="Muted.TLabel")
         self.m_lbl_notice.pack(anchor="w")
         panes = ttk.PanedWindow(self, orient="horizontal")
@@ -217,7 +221,6 @@ class ClassesTab(BaseTab):
         more = self.bar(pady=(6, 0))
         self.button(more, "Đổi GV chủ nhiệm", self.change_teacher, P.MANAGE_CLASSES)
         self.button(more, "Gỡ GV chủ nhiệm", self.remove_teacher, P.MANAGE_CLASSES)
-        self.button(more, "Lịch nghỉ lễ / học Thứ 7", self.calendar, P.MANAGE_CLASSES)
         self.button(more, "Trẻ lệch độ tuổi", self.age_mismatches)
         self.button(more, "Kết thúc năm học", self.end_year, P.MANAGE_CLASSES)
 
@@ -339,10 +342,6 @@ class ClassesTab(BaseTab):
         rows = [[c.id, c.full_name, c.age_text, k.name, f"{k.min_age}-{k.max_age}"] for c, k in self._mismatches()]
         self.show_text("Trẻ lệch độ tuổi", format_table(["Mã", "Họ tên", "Tuổi", "Lớp", "Độ tuổi lớp"], rows,
                                                          title="TRẺ LỆCH ĐỘ TUỔI LỚP ĐANG HỌC"))
-
-    def calendar(self) -> None:
-        """K03: lịch năm học dùng chung cho điểm danh, tiền ăn, thực đơn, dashboard."""
-        self.app.show_tab("CalendarTab")
 
     def end_year(self) -> None:
         """L14: các lớp lên khối trên, trẻ lớp Lá ra trường (lịch sử vẫn giữ)."""
