@@ -51,7 +51,7 @@ Hóa đơn (`MN_NV_HOA_DON`) - Khoản phí (`MN_NV_HOA_DON_KHOAN_PHI`) - Phiế
 
 **Quan hệ 1 - n**
 - Khối lớp - Lớp học; Lớp học - Trẻ; Lớp học - Tiết học (thời khóa biểu); Vai trò - Tài khoản.
-- Trẻ - Điểm danh, Cân đo, Dị ứng, Đơn xin nghỉ, Nhật ký, Tin nhắn, Hóa đơn, Người đón hộ.
+- Trẻ - Điểm danh, Cân đo, Dị ứng, Đơn xin nghỉ, Nhật ký, Tin nhắn, Hóa đơn.
 - Hóa đơn - Khoản phí, Hóa đơn - Phiếu thu; Món ăn - Thành phần; Nhật ký - Mức ăn từng bữa; Đơn xin nghỉ - Tin nhắn.
 - Báo cáo - Lịch sử xử lý; Bảng lương - Chi tiết lương; Nhân viên - Giờ làm thêm.
 
@@ -60,6 +60,7 @@ Hóa đơn (`MN_NV_HOA_DON`) - Khoản phí (`MN_NV_HOA_DON_KHOAN_PHI`) - Phiế
 | Quan hệ | Bảng trung gian | Thuộc tính của liên kết |
 |---|---|---|
 | Trẻ - Phụ huynh | `MN_DM_TRE_PHU_HUYNH` | `THU_TU` (thứ tự liên hệ) |
+| Trẻ - Người đón hộ | `MN_DM_TRE_NGUOI_DON_HO` | `QUAN_HE` (ông nội, bà ngoại... - riêng với từng trẻ), `STT` |
 | Trẻ - Dịch vụ tự chọn | `MN_NV_DANG_KY_DICH_VU` | `THU_TU` |
 | Thực đơn - Món ăn | `MN_NV_THUC_DON_CHI_TIET` | `BUA_AN` (sáng / trưa / xế), `STT` |
 | Báo cáo toàn trường - Báo cáo bộ phận | `MN_NV_BAO_CAO_NGUON` | `STT` |
@@ -68,8 +69,15 @@ Hóa đơn (`MN_NV_HOA_DON`) - Khoản phí (`MN_NV_HOA_DON_KHOAN_PHI`) - Phiế
 - *Dữ liệu lịch sử giữ nguyên giá trị tại thời điểm phát sinh*: hóa đơn lưu `TEN_TRE`, `TEN_LOP`; điểm danh, nhật ký,
   tin nhắn lưu `MA_LOP` của ngày đó (không ràng buộc khóa ngoại - trẻ chuyển lớp hay lớp giải thể thì lịch sử vẫn đúng);
   bảng lương đã chốt và số liệu báo cáo đã gửi (`MN_NV_BAO_CAO.SO_LIEU`) là văn bản cố định, không tính lại.
-- *Cột tính toán*: `MN_NV_HOA_DON_KHOAN_PHI.THANH_TIEN = DON_GIA × IFNULL(SO_LUONG, 1)` do SQLite tự tính
-  (`GENERATED ALWAYS AS ... STORED`) - truy vấn tổng tiền không cần lặp lại công thức.
+- *Chuẩn hóa BCNF* (mọi phụ thuộc hàm X → Y đều có X là siêu khóa; thiết kế v3):
+  - người đón hộ tách thành `MN_DM_NGUOI_DON_HO` (mỗi người một dòng, `SO_CCCD` UNIQUE) + bảng liên kết
+    `MN_DM_TRE_NGUOI_DON_HO` - trước đây một người đón nhiều trẻ (anh chị em) bị lặp họ tên, SĐT ở từng trẻ, vi phạm
+    `SO_CCCD → HO_TEN, SO_DIEN_THOAI`. Mã người đón hộ `ND…` sinh cố định theo CCCD (chưa có CCCD: họ tên + SĐT);
+  - không lưu thành tiền của khoản phí: `DON_GIA × IFNULL(SO_LUONG, 1)` tính khi truy vấn (trước đây là cột tính toán
+    `THANH_TIEN`, vi phạm `(DON_GIA, SO_LUONG) → THANH_TIEN`);
+  - không lưu loại Giáo viên / Nhân viên trong bảng lương đã chốt: suy ra từ mã nhân sự `Txxx` / `NVxxx` (trước đây
+    cột `LOAI`, vi phạm `MA_NHAN_SU → LOAI` với khóa ứng viên `(KY_LUONG, MA_NHAN_SU)`).
+  - CSDL tạo bởi bản v2 được chương trình **tự nâng cấp** khi mở (dữ liệu được chép sang, người đón hộ trùng được gộp).
 - *Ràng buộc kiểm tra (CHECK)*: thứ trong tuần 0 - 6, tháng 1 - 12, ngày kết thúc đơn nghỉ ≥ ngày bắt đầu, loại nhân sự.
 - *Xóa dây chuyền có chủ đích*: xóa hồ sơ trẻ (nhập nhầm) thì điểm danh, nhật ký, cân đo... của trẻ đó cũng bị xóa;
   món ăn đang có trong thực đơn, dịch vụ đang có trẻ đăng ký, báo cáo đã được dùng làm nguồn thì **không cho xóa**.

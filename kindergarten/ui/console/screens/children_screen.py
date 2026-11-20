@@ -229,8 +229,9 @@ class ChildrenScreen(Screen):
                 person = PickupPerson(io.ask_text("Họ tên người đón", validator=validate_name),
                                       io.ask_text("Quan hệ với trẻ (VD: Bà ngoại)"), io.ask_phone("SĐT"),
                                       io.ask_text("Số CCCD", required=False) or "")
-                child.add_pickup_person(person)
-                io.success(f"Đã thêm {person.full_name}.")
+                synced = self.system.save_pickup_person(child.id, person)
+                also = f" Cập nhật SĐT/CCCD cho cả: {', '.join(c.full_name for c in synced)}." if synced else ""
+                io.success(f"Đã thêm {person.full_name}.{also}")
             else:
                 person = io.choose(persons, str, "Chọn người cần xóa", "Chưa có người đón hộ.")
                 if person is not None:

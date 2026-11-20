@@ -1,6 +1,6 @@
 """Lưu trữ bằng SQLite - toàn bộ CSDL nằm trong MỘT file (mặc định data/ql_mam_non.db), không cần cài máy chủ.
 
-Thiết kế bảng: schema.py (42 bảng chuẩn hóa, tài liệu Database/thiet_ke_csdl.md). Xem / sửa bảng bằng
+Thiết kế bảng: schema.py (43 bảng chuẩn hóa, tài liệu Database/thiet_ke_csdl.md). Xem / sửa bảng bằng
 "DB Browser for SQLite" (mở thẳng file .db).
 
 Ghi dữ liệu:
@@ -19,7 +19,6 @@ import shutil
 import socket
 import sqlite3
 import tempfile
-import zipfile
 from datetime import date, datetime, time
 from decimal import Decimal
 from pathlib import Path
@@ -31,7 +30,7 @@ from ..finance.settings import FeeSettings
 from ..school_calendar import SchoolCalendar
 from .datastore import LOAD_ERRORS, DataStore
 from .schema import (DATABASE_NAME, ENTITIES, SCHEMA_VERSION, TABLE_LIST, TABLES, Rowset, Table, _decode, _hash,
-                     _rows_of)
+                     _pickup_identity, _rows_of, pickup_person_id)
 
 if TYPE_CHECKING:
     from ..system import KindergartenSystem
@@ -106,6 +105,57 @@ def create_table_sql() -> list[str]:
 
 
 # =============================================================================
+# Nâng cấp CSDL tạo bởi bản cũ (VD v2 -> v3: tách người đón hộ, bỏ cột THANH_TIEN, LOAI để đạt BCNF)
+# =============================================================================
+OLD_SUFFIX = "_CU"
+
+
+def _columns(conn: sqlite3.Connection, table: str) -> list[str]:
+    return [row[1] for row in conn.execute(f"PRAGMA table_xinfo({_q(table)})")]   # xinfo: kể cả cột tính toán
+
+
+def _upgrade_before(conn: sqlite3.Connection) -> list[str]:
+    """Bảng có danh sách cột khác thiết kế hiện tại -> đổi tên thành <bảng>_CU để tạo lại đúng thiết kế;
+    dữ liệu được chép sang ở _upgrade_after. Trả về tên các bảng đã đổi."""
+    existing = {name for (name,) in conn.execute("SELECT name FROM sqlite_master WHERE type = 'table'")}
+    moved = []
+    for table in TABLE_LIST:
+        if table.name in existing and _columns(conn, table.name) != [c.name for c in table.cols]:
+            conn.execute(f"DROP TABLE IF EXISTS {_q(table.name + OLD_SUFFIX)}")
+            conn.execute(f"ALTER TABLE {_q(table.name)} RENAME TO {_q(table.name + OLD_SUFFIX)}")
+            moved.append(table.name)
+    return moved
+
+
+def _upgrade_after(conn: sqlite3.Connection, moved: list[str]) -> None:
+    """Chép dữ liệu từ bảng <bảng>_CU sang bảng mới (các cột còn giữ) rồi xóa bảng cũ."""
+    for name in moved:
+        old = name + OLD_SUFFIX
+        old_cols = _columns(conn, old)
+        if name == "MN_DM_NGUOI_DON_HO" and "MA_TRE" in old_cols:
+            _migrate_pickups(conn, old)
+        else:
+            keep = ", ".join(_q(c) for c in TABLES[name].insert_cols if c in old_cols)
+            conn.execute(f"INSERT INTO {_q(name)} ({keep}) SELECT {keep} FROM {_q(old)}")
+        conn.execute(f"DROP TABLE {_q(old)}")
+        for statement in index_sql(TABLES[name]):   # chỉ mục cũ đã bị xóa cùng bảng _CU
+            conn.execute(statement)
+
+
+def _migrate_pickups(conn: sqlite3.Connection, old: str) -> None:
+    """v2: một dòng người đón hộ cho MỖI trẻ (lặp thông tin khi một người đón nhiều trẻ) ->
+    v3: MN_DM_NGUOI_DON_HO (mỗi người một dòng) + MN_DM_TRE_NGUOI_DON_HO (quan hệ với từng trẻ)."""
+    rows = conn.execute(f'SELECT "MA_TRE", "STT", "HO_TEN", "QUAN_HE", "SO_DIEN_THOAI", "SO_CCCD" FROM {_q(old)} '
+                        'ORDER BY "MA_TRE", "STT"').fetchall()
+    for child_id, order, name, relationship, phone, card in rows:
+        key = pickup_person_id(_pickup_identity({"full_name": name, "phone": phone, "id_card": card}))
+        conn.execute('INSERT OR IGNORE INTO "MN_DM_NGUOI_DON_HO" ("MA_NGUOI_DON", "HO_TEN", "SO_DIEN_THOAI", '
+                     '"SO_CCCD") VALUES (?, ?, ?, ?)', (key, name, phone or "", card or None))
+        conn.execute('INSERT OR IGNORE INTO "MN_DM_TRE_NGUOI_DON_HO" ("MA_TRE", "MA_NGUOI_DON", "STT", "QUAN_HE") '
+                     'VALUES (?, ?, ?, ?)', (child_id, key, order, relationship or ""))
+
+
+# =============================================================================
 class SQLiteDataStore:
     """Cùng giao diện với DataStore (JSON) nên các phần khác của chương trình không phải đổi."""
 
@@ -113,7 +163,7 @@ class SQLiteDataStore:
     KEEP_BACKUPS = DataStore.KEEP_BACKUPS
 
     def __init__(self, data_dir: str | Path = "data", db_path: str | Path | None = None) -> None:
-        self.data_dir = Path(data_dir)             # thư mục chứa file CSDL, bản sao lưu .zip
+        self.data_dir = Path(data_dir)             # thư mục chứa file CSDL; bản sao lưu .db nằm trong backups/
         self.backup_dir = self.data_dir / "backups"
         self.path = Path(db_path) if db_path else self.data_dir / DB_FILE
         self._hashes: dict[str, dict[str, str]] | None = None   # None = chưa biết CSDL đang có những dòng nào
@@ -143,17 +193,26 @@ class SQLiteDataStore:
 
     def ensure_schema(self) -> None:
         conn = self.connection()
+        # đổi tên bảng khi nâng cấp: KHÔNG sửa theo tên mới ở khóa ngoại của bảng khác (bảng sẽ được tạo lại)
+        conn.execute("PRAGMA legacy_alter_table = ON")
         try:
             conn.execute("BEGIN")
+            moved = _upgrade_before(conn)
             for statement in create_table_sql():
                 conn.execute(statement)
+            _upgrade_after(conn, moved)
             conn.execute('INSERT OR IGNORE INTO "MN_HT_PHIEN_BAN" ("MA_PHIEN_BAN", "SO_PHIEN_BAN", '
                          '"PHIEN_BAN_LUOC_DO") VALUES (1, 0, ?)', (SCHEMA_VERSION,))
+            if moved:
+                conn.execute('UPDATE "MN_HT_PHIEN_BAN" SET "PHIEN_BAN_LUOC_DO" = ? WHERE "MA_PHIEN_BAN" = 1',
+                             (SCHEMA_VERSION,))
             conn.execute("COMMIT")
         except sqlite3.Error as exc:
             if conn.in_transaction:
                 conn.execute("ROLLBACK")
             raise DataStoreError(f"Không tạo được bảng trong '{self.path}': {exc}") from exc
+        finally:
+            conn.execute("PRAGMA legacy_alter_table = OFF")
 
     def _query(self, sql: str, args: Any = ()) -> list[tuple]:
         try:
@@ -415,48 +474,100 @@ class SQLiteDataStore:
             raise DataStoreError(f"Không ghi được nhật ký thao tác: {exc}") from exc
 
     # ------------------------------------------------------------------ sao lưu / khôi phục
+    # Bản sao lưu là một file CSDL SQLite (.db) hoàn chỉnh - đủ 43 bảng, kể cả nhật ký thao tác - tạo bằng
+    # sqlite3 backup API nên chụp được ngay cả khi chương trình đang mở CSDL. Mở thẳng bằng DB Browser for SQLite.
     def list_backup_paths(self) -> list[Path]:
         if not self.backup_dir.exists():
             return []
-        return sorted(self.backup_dir.glob("*.zip"), reverse=True)
+        return sorted(self.backup_dir.glob("*.db"), reverse=True)
 
     def list_backups(self) -> list[str]:
         return [p.name for p in self.list_backup_paths()]
 
     def backup(self, label: str = "") -> Path:
-        """Xuất toàn bộ dữ liệu ra file .zip (mỗi danh sách một file JSON) trong data/backups/."""
+        """Chụp toàn bộ file CSDL thành data/backups/<thời điểm>[_nhãn].db."""
         if not self.has_data():
             raise DataStoreError("Chưa có dữ liệu để sao lưu.")
-        payload, _revision = self.read_payload()
         self.backup_dir.mkdir(parents=True, exist_ok=True)
         stamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")[:-3]
-        target = self.backup_dir / f"{stamp}_sqlite{'_' + label if label else ''}.zip"
-        with zipfile.ZipFile(target, "w", compression=zipfile.ZIP_DEFLATED) as archive:
-            for name, data in payload.items():
-                archive.writestr(f"{name}.json", json.dumps(data, ensure_ascii=False, default=str))
+        target = self.backup_dir / f"{stamp}{'_' + label if label else ''}.db"
+        try:
+            dest = sqlite3.connect(target)
+            try:
+                self.connection().backup(dest)
+            finally:
+                dest.close()
+        except (sqlite3.Error, OSError) as exc:
+            target.unlink(missing_ok=True)
+            raise DataStoreError(f"Không sao lưu được CSDL: {exc}") from exc
         DataStore._prune_backups(self)   # type: ignore[arg-type]
         return target
 
+    @staticmethod
+    def _check_backup_file(source: Path) -> None:
+        """Bản sao lưu phải là CSDL SQLite của chương trình, có tài khoản, lược đồ không mới hơn bản đang chạy."""
+        try:
+            conn = sqlite3.connect(f"{source.resolve().as_uri()}?mode=ro", uri=True)
+            try:
+                if conn.execute("PRAGMA quick_check").fetchone()[0] != "ok":
+                    raise DataStoreError(f"File '{source.name}' bị hỏng.")
+                users = conn.execute('SELECT COUNT(*) FROM "MN_HT_TAI_KHOAN"').fetchone()[0]
+                version = conn.execute('SELECT "PHIEN_BAN_LUOC_DO" FROM "MN_HT_PHIEN_BAN" '
+                                       'WHERE "MA_PHIEN_BAN" = 1').fetchone()
+            finally:
+                conn.close()
+        except sqlite3.Error as exc:
+            raise DataStoreError(f"'{source.name}' không phải bản sao lưu CSDL hợp lệ: {exc}") from exc
+        if not users:
+            raise DataStoreError(f"Bản sao lưu '{source.name}' không có tài khoản nào.")
+        if version and int(version[0] or 0) > SCHEMA_VERSION:
+            raise DataStoreError(f"Bản sao lưu '{source.name}' được tạo bởi phiên bản chương trình mới hơn.")
+
     def restore(self, name: str, system: "KindergartenSystem") -> Path:
-        """Khôi phục từ bản sao lưu .zip vào CSDL (hiện trạng được tự sao lưu trước)."""
+        """Khôi phục CSDL từ một bản sao lưu .db (hiện trạng được tự sao lưu trước).
+
+        Bản sao lưu được kiểm tra và nạp thử từ một bản chép tạm; chỉ khi đọc được trọn vẹn mới ghi đè CSDL thật.
+        Nhật ký thao tác KHÔNG bị quay lui (giữ nguyên lịch sử đến thời điểm khôi phục).
+        """
         source = self.backup_dir / name
         if not source.exists():
             raise DataStoreError(f"Không có bản sao lưu '{name}'.")
+        self._check_backup_file(source)
         current = self.backup(label="truoc_khoi_phuc") if self.has_data() else None
         temp = Path(tempfile.mkdtemp(prefix="kg_restore_"))
+        trial = None
         try:
-            with zipfile.ZipFile(source) as archive:
-                members = [n for n in archive.namelist() if n.endswith(".json") and "/" not in n]
-                if "users.json" not in members:
-                    raise DataStoreError(f"Bản sao lưu '{name}' không hợp lệ (thiếu users.json).")
-                for member in members:
-                    archive.extract(member, temp)
-            DataStore(temp).load_all(system)
-        except (OSError, zipfile.BadZipFile) as exc:
+            shutil.copy2(source, temp / DB_FILE)
+            trial = SQLiteDataStore(temp)          # tự bổ sung bảng còn thiếu nếu bản sao lưu có lược đồ cũ hơn
+            try:
+                trial.load_all(system)             # nạp thử: lỗi thì CSDL thật chưa bị động tới
+            except DataStoreError:
+                self.load_all(system)              # trả lại dữ liệu hiện tại cho bộ nhớ
+                raise
+            audit = self._query('SELECT * FROM "MN_HT_NHAT_KY_THAO_TAC"')
+            revision, _writer = self.remote_revision()
+            conn = self.connection()
+            trial.connection().backup(conn)        # thay toàn bộ nội dung file CSDL
+            conn.execute("BEGIN IMMEDIATE")
+            conn.execute('DELETE FROM "MN_HT_NHAT_KY_THAO_TAC"')
+            if audit:
+                conn.executemany('INSERT INTO "MN_HT_NHAT_KY_THAO_TAC" VALUES (' + ", ".join("?" * len(audit[0]))
+                                 + ")", audit)
+            # phiên bản tăng tiếp từ hiện trạng -> các cửa sổ khác đang mở chắc chắn thấy thay đổi và tải lại
+            conn.execute('UPDATE "MN_HT_PHIEN_BAN" SET "SO_PHIEN_BAN" = ?, "CAP_NHAT_LUC" = ?, '
+                         '"NGUOI_CAP_NHAT" = ? WHERE "MA_PHIEN_BAN" = 1',
+                         (revision + 1, datetime.now().replace(microsecond=0), self._writer(system)))
+            conn.execute("COMMIT")
+        except (sqlite3.Error, OSError) as exc:
+            if self._connection is not None and self._connection.in_transaction:
+                self._connection.execute("ROLLBACK")
+            self.load_all(system)                  # bộ nhớ khớp lại với những gì đang có trong CSDL
             raise DataStoreError(f"Không khôi phục được '{name}': {exc}") from exc
         finally:
+            if trial is not None:
+                trial.close()
             shutil.rmtree(temp, ignore_errors=True)
-        self.replace_all(system)
+        self.load_all(system)
         return current or source
 
     def replace_all(self, system: "KindergartenSystem") -> None:

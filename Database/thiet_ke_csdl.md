@@ -51,7 +51,7 @@ Hóa đơn (`MN_NV_HOA_DON`) - Khoản phí (`MN_NV_HOA_DON_KHOAN_PHI`) - Phiế
 
 **Quan hệ 1 - n**
 - Khối lớp - Lớp học; Lớp học - Trẻ; Lớp học - Tiết học (thời khóa biểu); Vai trò - Tài khoản.
-- Trẻ - Điểm danh, Cân đo, Dị ứng, Đơn xin nghỉ, Nhật ký, Tin nhắn, Hóa đơn, Người đón hộ.
+- Trẻ - Điểm danh, Cân đo, Dị ứng, Đơn xin nghỉ, Nhật ký, Tin nhắn, Hóa đơn.
 - Hóa đơn - Khoản phí, Hóa đơn - Phiếu thu; Món ăn - Thành phần; Nhật ký - Mức ăn từng bữa; Đơn xin nghỉ - Tin nhắn.
 - Báo cáo - Lịch sử xử lý; Bảng lương - Chi tiết lương; Nhân viên - Giờ làm thêm.
 
@@ -60,6 +60,7 @@ Hóa đơn (`MN_NV_HOA_DON`) - Khoản phí (`MN_NV_HOA_DON_KHOAN_PHI`) - Phiế
 | Quan hệ | Bảng trung gian | Thuộc tính của liên kết |
 |---|---|---|
 | Trẻ - Phụ huynh | `MN_DM_TRE_PHU_HUYNH` | `THU_TU` (thứ tự liên hệ) |
+| Trẻ - Người đón hộ | `MN_DM_TRE_NGUOI_DON_HO` | `QUAN_HE` (ông nội, bà ngoại... - riêng với từng trẻ), `STT` |
 | Trẻ - Dịch vụ tự chọn | `MN_NV_DANG_KY_DICH_VU` | `THU_TU` |
 | Thực đơn - Món ăn | `MN_NV_THUC_DON_CHI_TIET` | `BUA_AN` (sáng / trưa / xế), `STT` |
 | Báo cáo toàn trường - Báo cáo bộ phận | `MN_NV_BAO_CAO_NGUON` | `STT` |
@@ -68,8 +69,15 @@ Hóa đơn (`MN_NV_HOA_DON`) - Khoản phí (`MN_NV_HOA_DON_KHOAN_PHI`) - Phiế
 - *Dữ liệu lịch sử giữ nguyên giá trị tại thời điểm phát sinh*: hóa đơn lưu `TEN_TRE`, `TEN_LOP`; điểm danh, nhật ký,
   tin nhắn lưu `MA_LOP` của ngày đó (không ràng buộc khóa ngoại - trẻ chuyển lớp hay lớp giải thể thì lịch sử vẫn đúng);
   bảng lương đã chốt và số liệu báo cáo đã gửi (`MN_NV_BAO_CAO.SO_LIEU`) là văn bản cố định, không tính lại.
-- *Cột tính toán*: `MN_NV_HOA_DON_KHOAN_PHI.THANH_TIEN = DON_GIA × IFNULL(SO_LUONG, 1)` do SQLite tự tính
-  (`GENERATED ALWAYS AS ... STORED`) - truy vấn tổng tiền không cần lặp lại công thức.
+- *Chuẩn hóa BCNF* (mọi phụ thuộc hàm X → Y đều có X là siêu khóa; thiết kế v3):
+  - người đón hộ tách thành `MN_DM_NGUOI_DON_HO` (mỗi người một dòng, `SO_CCCD` UNIQUE) + bảng liên kết
+    `MN_DM_TRE_NGUOI_DON_HO` - trước đây một người đón nhiều trẻ (anh chị em) bị lặp họ tên, SĐT ở từng trẻ, vi phạm
+    `SO_CCCD → HO_TEN, SO_DIEN_THOAI`. Mã người đón hộ `ND…` sinh cố định theo CCCD (chưa có CCCD: họ tên + SĐT);
+  - không lưu thành tiền của khoản phí: `DON_GIA × IFNULL(SO_LUONG, 1)` tính khi truy vấn (trước đây là cột tính toán
+    `THANH_TIEN`, vi phạm `(DON_GIA, SO_LUONG) → THANH_TIEN`);
+  - không lưu loại Giáo viên / Nhân viên trong bảng lương đã chốt: suy ra từ mã nhân sự `Txxx` / `NVxxx` (trước đây
+    cột `LOAI`, vi phạm `MA_NHAN_SU → LOAI` với khóa ứng viên `(KY_LUONG, MA_NHAN_SU)`).
+  - CSDL tạo bởi bản v2 được chương trình **tự nâng cấp** khi mở (dữ liệu được chép sang, người đón hộ trùng được gộp).
 - *Ràng buộc kiểm tra (CHECK)*: thứ trong tuần 0 - 6, tháng 1 - 12, ngày kết thúc đơn nghỉ ≥ ngày bắt đầu, loại nhân sự.
 - *Xóa dây chuyền có chủ đích*: xóa hồ sơ trẻ (nhập nhầm) thì điểm danh, nhật ký, cân đo... của trẻ đó cũng bị xóa;
   món ăn đang có trong thực đơn, dịch vụ đang có trẻ đăng ký, báo cáo đã được dùng làm nguồn thì **không cho xóa**.
@@ -225,12 +233,16 @@ erDiagram
         int THU_TU
     }
     MN_DM_NGUOI_DON_HO {
-        varchar MA_TRE PK,FK
-        int STT PK
+        varchar MA_NGUOI_DON PK
         varchar HO_TEN
-        varchar QUAN_HE
         varchar SO_DIEN_THOAI
         varchar SO_CCCD
+    }
+    MN_DM_TRE_NGUOI_DON_HO {
+        varchar MA_TRE PK,FK
+        varchar MA_NGUOI_DON PK,FK
+        int STT
+        varchar QUAN_HE
     }
     MN_DM_MON_AN {
         varchar MA_MON PK
@@ -251,7 +263,8 @@ erDiagram
     MN_DM_LOP_HOC |o--o{ MN_DM_TRE : "MA_LOP"
     MN_DM_TRE ||--o{ MN_DM_TRE_PHU_HUYNH : "MA_TRE"
     MN_DM_PHU_HUYNH ||--o{ MN_DM_TRE_PHU_HUYNH : "MA_PHU_HUYNH"
-    MN_DM_TRE ||--o{ MN_DM_NGUOI_DON_HO : "MA_TRE"
+    MN_DM_TRE ||--o{ MN_DM_TRE_NGUOI_DON_HO : "MA_TRE"
+    MN_DM_NGUOI_DON_HO ||--o{ MN_DM_TRE_NGUOI_DON_HO : "MA_NGUOI_DON"
     MN_DM_MON_AN ||--o{ MN_DM_THANH_PHAN_MON : "MA_MON"
 ```
 
@@ -344,7 +357,6 @@ erDiagram
         varchar TEN_KHOAN
         bigint DON_GIA
         int SO_LUONG
-        bigint THANH_TIEN
     }
     MN_NV_PHIEU_THU {
         varchar MA_PHIEU_THU PK
@@ -478,7 +490,6 @@ erDiagram
         int STT PK
         varchar MA_NHAN_SU
         varchar HO_TEN
-        varchar LOAI
         varchar CHUC_VU
         bigint THUC_LINH
         varchar CACH_TINH
@@ -526,7 +537,8 @@ erDiagram
     MN_DM_LOP_HOC |o--o{ MN_DM_TRE : "MA_LOP"
     MN_DM_TRE ||--o{ MN_DM_TRE_PHU_HUYNH : "MA_TRE"
     MN_DM_PHU_HUYNH ||--o{ MN_DM_TRE_PHU_HUYNH : "MA_PHU_HUYNH"
-    MN_DM_TRE ||--o{ MN_DM_NGUOI_DON_HO : "MA_TRE"
+    MN_DM_TRE ||--o{ MN_DM_TRE_NGUOI_DON_HO : "MA_TRE"
+    MN_DM_NGUOI_DON_HO ||--o{ MN_DM_TRE_NGUOI_DON_HO : "MA_NGUOI_DON"
     MN_DM_MON_AN ||--o{ MN_DM_THANH_PHAN_MON : "MA_MON"
     MN_DM_NHAN_SU ||--o{ MN_NV_LAM_THEM_GIO : "MA_NHAN_SU"
     MN_DM_TRE ||--o{ MN_NV_DANG_KY_DICH_VU : "MA_TRE"
@@ -571,7 +583,8 @@ erDiagram
 | `MN_DM_LOP_HOC` | `MN_DM_TRE` | `MA_LOP` | 0..1 - n | để trống liên kết |
 | `MN_DM_TRE` | `MN_DM_TRE_PHU_HUYNH` | `MA_TRE` | 1 - n | xóa theo |
 | `MN_DM_PHU_HUYNH` | `MN_DM_TRE_PHU_HUYNH` | `MA_PHU_HUYNH` | 1 - n | xóa theo |
-| `MN_DM_TRE` | `MN_DM_NGUOI_DON_HO` | `MA_TRE` | 1 - n | xóa theo |
+| `MN_DM_TRE` | `MN_DM_TRE_NGUOI_DON_HO` | `MA_TRE` | 1 - n | xóa theo |
+| `MN_DM_NGUOI_DON_HO` | `MN_DM_TRE_NGUOI_DON_HO` | `MA_NGUOI_DON` | 1 - n | xóa theo |
 | `MN_DM_MON_AN` | `MN_DM_THANH_PHAN_MON` | `MA_MON` | 1 - n | xóa theo |
 | `MN_DM_NHAN_SU` | `MN_NV_LAM_THEM_GIO` | `MA_NHAN_SU` | 1 - n | xóa theo |
 | `MN_DM_TRE` | `MN_NV_DANG_KY_DICH_VU` | `MA_TRE` | 1 - n | xóa theo |
@@ -603,7 +616,7 @@ erDiagram
 
 ## 6. Từ điển dữ liệu
 
-Tổng cộng **42 bảng**: 6 bảng hệ thống, 13 bảng danh mục, 23 bảng nghiệp vụ. Bảng chi tiết (xóa / ghi lại cùng thực thể cha): `MN_DM_GIAO_VIEN`, `MN_DM_NGUOI_DON_HO`, `MN_DM_NHAN_VIEN`, `MN_DM_THANH_PHAN_MON`, `MN_DM_TRE_PHU_HUYNH`, `MN_NV_BANG_LUONG_CHI_TIET`, `MN_NV_BAO_CAO_LICH_SU`, `MN_NV_BAO_CAO_NGUON`, `MN_NV_DANG_KY_DICH_VU`, `MN_NV_DON_NGHI_NGAY_DA_DUYET`, `MN_NV_HOA_DON_KHOAN_PHI`, `MN_NV_LAM_THEM_GIO`, `MN_NV_NHAT_KY_BUA_AN`, `MN_NV_PHIEU_THU`, `MN_NV_THUC_DON_CHI_TIET`, `MN_NV_TIET_DAY_NHAN_XET`.
+Tổng cộng **43 bảng**: 6 bảng hệ thống, 14 bảng danh mục, 23 bảng nghiệp vụ. Bảng chi tiết (xóa / ghi lại cùng thực thể cha): `MN_DM_GIAO_VIEN`, `MN_DM_NHAN_VIEN`, `MN_DM_THANH_PHAN_MON`, `MN_DM_TRE_NGUOI_DON_HO`, `MN_DM_TRE_PHU_HUYNH`, `MN_NV_BANG_LUONG_CHI_TIET`, `MN_NV_BAO_CAO_LICH_SU`, `MN_NV_BAO_CAO_NGUON`, `MN_NV_DANG_KY_DICH_VU`, `MN_NV_DON_NGHI_NGAY_DA_DUYET`, `MN_NV_HOA_DON_KHOAN_PHI`, `MN_NV_LAM_THEM_GIO`, `MN_NV_NHAT_KY_BUA_AN`, `MN_NV_PHIEU_THU`, `MN_NV_THUC_DON_CHI_TIET`, `MN_NV_TIET_DAY_NHAN_XET`.
 
 ### F1.1 - Quản trị hệ thống
 
@@ -781,16 +794,23 @@ Ràng buộc kiểm tra: `LOAI_NHAN_SU IN ('GIAO_VIEN', 'NHAN_VIEN')`
 | `MA_PHU_HUYNH` | VARCHAR(20) | PK FK → `MN_DM_PHU_HUYNH` | x | Phụ huynh |
 | `THU_TU` | INT |  | x | Thứ tự phụ huynh của trẻ |
 
-#### `MN_DM_NGUOI_DON_HO` - Người được phép đón trẻ thay bố mẹ
+#### `MN_DM_NGUOI_DON_HO` - Người được phép đón trẻ thay bố mẹ (mỗi người một dòng)
 
 | Cột | Kiểu | Khóa | Bắt buộc | Ý nghĩa |
 |---|---|---|---|---|
-| `MA_TRE` | VARCHAR(20) | PK FK → `MN_DM_TRE` | x | Trẻ |
-| `STT` | INT | PK | x | Số thứ tự |
+| `MA_NGUOI_DON` | VARCHAR(20) | PK | x | Mã người đón hộ (ND + mã băm theo CCCD, hoặc họ tên + SĐT khi chưa có CCCD) |
 | `HO_TEN` | VARCHAR(150) |  | x | Họ tên |
-| `QUAN_HE` | VARCHAR(50) |  |  | Quan hệ với trẻ |
 | `SO_DIEN_THOAI` | VARCHAR(20) |  |  | Số điện thoại |
-| `SO_CCCD` | VARCHAR(20) |  |  | Số CCCD |
+| `SO_CCCD` | VARCHAR(20) | UNIQUE |  | Số CCCD (NULL = chưa khai) |
+
+#### `MN_DM_TRE_NGUOI_DON_HO` - Quan hệ n-n giữa trẻ và người đón hộ
+
+| Cột | Kiểu | Khóa | Bắt buộc | Ý nghĩa |
+|---|---|---|---|---|
+| `MA_TRE` | VARCHAR(20) | PK FK → `MN_DM_TRE` UNIQUE | x | Trẻ |
+| `MA_NGUOI_DON` | VARCHAR(20) | PK FK → `MN_DM_NGUOI_DON_HO` | x | Người đón hộ |
+| `STT` | INT | UNIQUE | x | Thứ tự trong danh sách người đón hộ của trẻ |
+| `QUAN_HE` | VARCHAR(50) |  |  | Quan hệ với trẻ (Ông nội, Bà ngoại...) |
 
 #### `MN_DM_MON_AN` - Danh mục món ăn
 
@@ -933,7 +953,6 @@ Ràng buộc kiểm tra: `THANG BETWEEN 1 AND 12`
 | `TEN_KHOAN` | VARCHAR(100) |  | x | Tên khoản phí |
 | `DON_GIA` | BIGINT |  | x | Đơn giá (học phí tháng / tiền ăn 1 ngày / giá dịch vụ) |
 | `SO_LUONG` | INT |  |  | Số ngày ăn hoặc số lượng (NULL với học phí tháng) |
-| `THANH_TIEN` | BIGINT (cột tính toán) |  |  | = DON_GIA x SO_LUONG (cột tính toán) |
 
 #### `MN_NV_PHIEU_THU` - Phiếu thu tiền học phí
 
@@ -1102,12 +1121,11 @@ Ràng buộc kiểm tra: `THANG BETWEEN 1 AND 12`
 
 | Cột | Kiểu | Khóa | Bắt buộc | Ý nghĩa |
 |---|---|---|---|---|
-| `KY_LUONG` | VARCHAR(10) | PK FK → `MN_NV_BANG_LUONG` | x | Kỳ lương |
+| `KY_LUONG` | VARCHAR(10) | PK FK → `MN_NV_BANG_LUONG` UNIQUE | x | Kỳ lương |
 | `STT` | INT | PK | x | Số thứ tự |
-| `MA_NHAN_SU` | VARCHAR(20) |  | x | Nhân sự (lưu lại, không ràng buộc) |
-| `HO_TEN` | VARCHAR(150) |  |  | Họ tên |
-| `LOAI` | VARCHAR(30) |  |  | Giáo viên / Nhân viên |
-| `CHUC_VU` | VARCHAR(100) |  |  | Chức vụ |
+| `MA_NHAN_SU` | VARCHAR(20) | UNIQUE | x | Nhân sự (lưu lại, không ràng buộc; Txxx = giáo viên, NVxxx = nhân viên) |
+| `HO_TEN` | VARCHAR(150) |  |  | Họ tên tại thời điểm chốt |
+| `CHUC_VU` | VARCHAR(100) |  |  | Chức vụ tại thời điểm chốt |
 | `THUC_LINH` | BIGINT |  | x | Thực lĩnh (đồng) |
 | `CACH_TINH` | VARCHAR(255) |  |  | Diễn giải cách tính |
 

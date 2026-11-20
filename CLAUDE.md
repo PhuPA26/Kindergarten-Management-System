@@ -2,6 +2,16 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Working with the user (quy tắc bắt buộc)
+
+- **Khi người dùng chỉ hỏi** về một điểm trong project (vì sao code như vậy, có nên đổi không, chỗ này có lỗi không…):
+  KHÔNG sửa code ngay theo hướng câu hỏi gợi ý. Trước tiên giải thích lý do code hiện tại được viết như vậy (dẫn
+  file:dòng, quy tắc nghiệp vụ trong README, ràng buộc kiến trúc), nêu ưu/nhược nếu đổi, rồi **hỏi có muốn sửa không**.
+  Chỉ sửa sau khi người dùng đồng ý.
+- **Khi người dùng yêu cầu sửa ngay từ đầu** (câu lệnh rõ ràng: "sửa…", "thêm…", "đổi…", "xoá…"): làm theo đúng ý
+  người dùng, không cần hỏi lại.
+- Trả lời người dùng bằng tiếng Việt.
+
 ## Project
 
 Kindergarten management system (Hệ thống thông tin quản lý Nhà trẻ - Mẫu giáo), a Python 3.10+ OOP course project.
@@ -67,7 +77,7 @@ Teachers see only their homeroom class plus classes where they have timetable sl
 children. Any new operation that crosses modules needs the same permission and scope checks.
 
 **Persistence.**
-- `storage/sqlite_store.SQLiteDataStore` is the main backend: `data/ql_mam_non.db` with 42 tables named
+- `storage/sqlite_store.SQLiteDataStore` is the main backend: `data/ql_mam_non.db` with 43 tables named
   `MN_<HT|DM|NV>_<NAME>`. `storage/datastore.DataStore` is the legacy JSON backend; the test `system` fixture uses it
   by default.
 - Flow: model `to_dict()` → `DataStore.collections(system)` → per-collection encoders in `storage/schema.py`

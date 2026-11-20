@@ -17,7 +17,7 @@ flowchart TB
         N3["core/ - BaseModel, BaseManager, Person (lớp cha dùng chung)"]
     end
     subgraph TC["Tầng truy cập dữ liệu - kindergarten/storage"]
-        T1["schema.py - định nghĩa 42 bảng, chuyển đối tượng <-> dòng"]
+        T1["schema.py - định nghĩa 43 bảng, chuyển đối tượng <-> dòng"]
         T2["sqlite_store.py - đọc / ghi SQLite theo giao dịch, sao lưu, phiên bản dữ liệu"]
         T3["datastore.py - file JSON (chế độ cũ, kiểm thử)"]
     end
@@ -56,7 +56,7 @@ Nguyên tắc chung của hướng dẫn: **đủ dài - dễ hiểu - tránh nh
 | **Form** | `f` + số + `_` + tên, VD `frm000_dang_nhap` | `frm` + 3 chữ số + `_` + loại (`ht` hệ thống / `dm` danh mục / `nv` nghiệp vụ / `bc` báo cáo) + `_` + tên. Hiện trên thanh tiêu đề cửa sổ và dòng đường dẫn của mỗi form |
 | **Control** | KHÔNG VIẾT HOA: `m` + `_` + loại + `_` + tên; loại: `txt` TextBox, `cbo` ComboBox, `fg` lưới, `chk` CheckBox, `lbl` Label, `e` enum, `dr` datarow. VD `m_txt_contract_name`, `m_cbo_country` | **Đã áp dụng cho control trên các form** (`kindergarten/ui/gui/app.py`, `tabs_*.py`): `m_txt_` ô nhập / ô văn bản, `m_cbo_` combobox, `m_fg_` lưới dữ liệu, `m_lbl_` nhãn; bổ sung `m_btn_` nút bấm, `m_tab_` thẻ (hai loại control có trong danh sách control của hướng dẫn nhưng chưa có tiền tố). VD `self.m_fg_list`, `self.m_cbo_class`, `self.m_txt_note`, `self.m_lbl_count`, `self.m_btn_save` |
 | **Biến** | KHÔNG VIẾT HOA: vùng (`v` biến cục bộ / `m` thành viên / `i` vào / `o` ra) + `_` + kiểu (`dc`, `i`, `b`, `str`, `dat`...) + `_` + tên | Tầng nghiệp vụ và truy cập dữ liệu **giữ chuẩn PEP 8 của Python** (`snake_case`, có chú thích kiểu `-> int`, `: str`). Lý do: Python đã ghi kiểu bằng *type hint* nên tiền tố kiểu bị trùng lặp; đổi hàng nghìn tên biến dễ phát sinh lỗi mà không thêm thông tin |
-| **TABLE** | VIẾT HOA: `SUB_SYSTEM` + `PURPOSE_TYPE` + `NAME`, VD `T2C_GD_TRANSACTION` | `MN_` + `HT` / `DM` / `NV` + `_` + tên, VD `MN_DM_TRE`, `MN_NV_HOA_DON` (42 bảng, `Database/thiet_ke_csdl.md`) |
+| **TABLE** | VIẾT HOA: `SUB_SYSTEM` + `PURPOSE_TYPE` + `NAME`, VD `T2C_GD_TRANSACTION` | `MN_` + `HT` / `DM` / `NV` + `_` + tên, VD `MN_DM_TRE`, `MN_NV_HOA_DON` (43 bảng, `Database/thiet_ke_csdl.md`) |
 | **DATASET** | VIẾT HOA: `DS` + `TABLE_NAME` | Không dùng DataSet (khái niệm của .NET). Tương đương: dữ liệu đọc từ bảng `MN_DM_TRE` nạp vào đối tượng quản lý `system.children` (`ChildManager`) |
 | **USObject** | VIẾT HOA: `US` + `TABLE_NAME` | Tương đương: lớp đối tượng nghiệp vụ ứng với bảng - `Child` ↔ `MN_DM_TRE`, `Invoice` ↔ `MN_NV_HOA_DON`... (ánh xạ ở `kindergarten/storage/schema.py`, mục ENCODERS) |
 

@@ -22,7 +22,7 @@ from .datastore import DataStore
 if TYPE_CHECKING:
     from ..system import KindergartenSystem
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3   # v3: chuẩn BCNF - tách người đón hộ (người + liên kết với trẻ), bỏ THANH_TIEN, LOAI
 DATABASE_NAME = "ql_mam_non"
 
 
@@ -190,14 +190,22 @@ TABLE_LIST: list[Table] = [
         C("THU_TU", SO, "Thứ tự phụ huynh của trẻ", False)], ("MA_TRE", "MA_PHU_HUYNH"),
         fks=[(("MA_TRE",), "MN_DM_TRE", ("MA_TRE",), "CASCADE"),
              (("MA_PHU_HUYNH",), "MN_DM_PHU_HUYNH", ("MA_PHU_HUYNH",), "CASCADE")]),
-    Table("MN_DM_NGUOI_DON_HO", "DM", "Người được phép đón trẻ thay bố mẹ", [
-        C("MA_TRE", MA, "Trẻ", False),
-        C("STT", SO, "Số thứ tự", False),
+    # Một người (ông bà, cô chú...) có thể được ủy quyền đón nhiều trẻ: thông tin người ở MN_DM_NGUOI_DON_HO,
+    # quan hệ với từng trẻ ở bảng liên kết n-n MN_DM_TRE_NGUOI_DON_HO (BCNF: SO_CCCD -> HO_TEN, SO_DIEN_THOAI).
+    Table("MN_DM_NGUOI_DON_HO", "DM", "Người được phép đón trẻ thay bố mẹ (mỗi người một dòng)", [
+        C("MA_NGUOI_DON", MA, "Mã người đón hộ (ND + mã băm theo CCCD, hoặc họ tên + SĐT khi chưa có CCCD)", False),
         C("HO_TEN", TEN, "Họ tên", False),
-        C("QUAN_HE", "VARCHAR(50)", "Quan hệ với trẻ"),
         C("SO_DIEN_THOAI", SDT, "Số điện thoại"),
-        C("SO_CCCD", SDT, "Số CCCD")], ("MA_TRE", "STT"),
-        fks=[(("MA_TRE",), "MN_DM_TRE", ("MA_TRE",), "CASCADE")]),
+        C("SO_CCCD", SDT, "Số CCCD (NULL = chưa khai)")], ("MA_NGUOI_DON",),
+        uniques=[("SO_CCCD",)]),
+    Table("MN_DM_TRE_NGUOI_DON_HO", "DM", "Quan hệ n-n giữa trẻ và người đón hộ", [
+        C("MA_TRE", MA, "Trẻ", False),
+        C("MA_NGUOI_DON", MA, "Người đón hộ", False),
+        C("STT", SO, "Thứ tự trong danh sách người đón hộ của trẻ", False),
+        C("QUAN_HE", "VARCHAR(50)", "Quan hệ với trẻ (Ông nội, Bà ngoại...)")], ("MA_TRE", "MA_NGUOI_DON"),
+        fks=[(("MA_TRE",), "MN_DM_TRE", ("MA_TRE",), "CASCADE"),
+             (("MA_NGUOI_DON",), "MN_DM_NGUOI_DON_HO", ("MA_NGUOI_DON",), "CASCADE")],
+        uniques=[("MA_TRE", "STT")]),
     Table("MN_DM_MON_AN", "DM", "Danh mục món ăn", [
         C("MA_MON", MA, "Mã món (MAxxx)", False),
         C("TEN_MON", TEN, "Tên món", False),
@@ -300,9 +308,9 @@ TABLE_LIST: list[Table] = [
         C("LOAI_PHI", "VARCHAR(20)", "MonthlyFee / MealFee / ExtraFee", False),
         C("TEN_KHOAN", "VARCHAR(100)", "Tên khoản phí", False),
         C("DON_GIA", TIEN, "Đơn giá (học phí tháng / tiền ăn 1 ngày / giá dịch vụ)", False),
-        C("SO_LUONG", SO, "Số ngày ăn hoặc số lượng (NULL với học phí tháng)"),
-        C("THANH_TIEN", TIEN, "= DON_GIA x SO_LUONG (cột tính toán)",
-          generated="DON_GIA * IFNULL(SO_LUONG, 1)")], ("MA_HOA_DON", "STT"),
+        # thành tiền = DON_GIA x IFNULL(SO_LUONG, 1): tính khi truy vấn, không lưu (tránh phụ thuộc hàm
+        # (DON_GIA, SO_LUONG) -> THANH_TIEN có vế trái không phải khóa - BCNF)
+        C("SO_LUONG", SO, "Số ngày ăn hoặc số lượng (NULL với học phí tháng)")], ("MA_HOA_DON", "STT"),
         fks=[(("MA_HOA_DON",), "MN_NV_HOA_DON", ("MA_HOA_DON",), "CASCADE")]),
     Table("MN_NV_PHIEU_THU", "NV", "Phiếu thu tiền học phí", [
         C("MA_PHIEU_THU", MA, "Mã phiếu thu (PTxxx)", False),
@@ -439,13 +447,14 @@ TABLE_LIST: list[Table] = [
     Table("MN_NV_BANG_LUONG_CHI_TIET", "NV", "Lương từng nhân sự trong bảng lương đã chốt (số liệu cố định)", [
         C("KY_LUONG", "VARCHAR(10)", "Kỳ lương", False),
         C("STT", SO, "Số thứ tự", False),
-        C("MA_NHAN_SU", MA, "Nhân sự (lưu lại, không ràng buộc)", False),
-        C("HO_TEN", TEN, "Họ tên"),
-        C("LOAI", "VARCHAR(30)", "Giáo viên / Nhân viên"),
-        C("CHUC_VU", "VARCHAR(100)", "Chức vụ"),
+        # không lưu loại Giáo viên / Nhân viên: suy ra từ mã nhân sự (Txxx / NVxxx) - BCNF
+        C("MA_NHAN_SU", MA, "Nhân sự (lưu lại, không ràng buộc; Txxx = giáo viên, NVxxx = nhân viên)", False),
+        C("HO_TEN", TEN, "Họ tên tại thời điểm chốt"),
+        C("CHUC_VU", "VARCHAR(100)", "Chức vụ tại thời điểm chốt"),
         C("THUC_LINH", TIEN, "Thực lĩnh (đồng)", False),
         C("CACH_TINH", CHU, "Diễn giải cách tính")], ("KY_LUONG", "STT"),
-        fks=[(("KY_LUONG",), "MN_NV_BANG_LUONG", ("KY_LUONG",), "CASCADE")]),
+        fks=[(("KY_LUONG",), "MN_NV_BANG_LUONG", ("KY_LUONG",), "CASCADE")],
+        uniques=[("KY_LUONG", "MA_NHAN_SU")]),
 ]
 TABLES: dict[str, Table] = {t.name: t for t in TABLE_LIST}
 
@@ -542,7 +551,8 @@ ENTITIES: list[Entity] = [   # thứ tự = thứ tự ghi (bảng được tham
     Entity("employees", "MN_DM_NHAN_SU", ("MN_NV_LAM_THEM_GIO",), ("MN_DM_GIAO_VIEN", "MN_DM_NHAN_VIEN")),
     Entity("classes", "MN_DM_LOP_HOC"),
     Entity("parents", "MN_DM_PHU_HUYNH"),
-    Entity("children", "MN_DM_TRE", ("MN_DM_TRE_PHU_HUYNH", "MN_DM_NGUOI_DON_HO", "MN_NV_DANG_KY_DICH_VU")),
+    Entity("nguoi_don_ho", "MN_DM_NGUOI_DON_HO"),   # tổng hợp từ danh sách người đón hộ của mọi trẻ
+    Entity("children", "MN_DM_TRE", ("MN_DM_TRE_PHU_HUYNH", "MN_DM_TRE_NGUOI_DON_HO", "MN_NV_DANG_KY_DICH_VU")),
     Entity("users", "MN_HT_TAI_KHOAN"),
     Entity("meals", "MN_DM_MON_AN", ("MN_DM_THANH_PHAN_MON",)),
     Entity("timetable", "MN_NV_THOI_KHOA_BIEU"),
@@ -606,7 +616,7 @@ def _rows_of(system: "KindergartenSystem") -> dict[str, dict[str, Rowset]]:
         out["bang_luong"][period] = {
             "MN_NV_BANG_LUONG": [(period, _dt_in(closed.get("closed_at")), closed.get("by", ""))],
             "MN_NV_BANG_LUONG_CHI_TIET": [
-                (period, i, r.get("employee_id", ""), r.get("name", ""), r.get("type", ""), r.get("position", ""),
+                (period, i, r.get("employee_id", ""), r.get("name", ""), r.get("position", ""),
                  int(r.get("salary", 0)), r.get("note", "")) for i, r in enumerate(closed.get("rows", []), 1)]}
 
     for collection, (manager, _factory) in DataStore.collections(system).items():
@@ -615,7 +625,41 @@ def _rows_of(system: "KindergartenSystem") -> dict[str, dict[str, Rowset]]:
         for item in manager:
             data = item.to_dict()
             target[data["id"]] = encode(data)
+    out["nguoi_don_ho"] = pickup_person_rows(p for child in system.children for p in child.pickup_persons)
     return out
+
+
+def pickup_person_id(identity: tuple[str, ...]) -> str:
+    """Mã người đón hộ: cố định theo danh tính (CCCD, hoặc họ tên + SĐT) nên lần lưu sau vẫn ra đúng mã cũ."""
+    return "ND" + hashlib.sha1("|".join(identity).encode("utf-8")).hexdigest()[:10].upper()
+
+
+def _pickup_identity(p: dict[str, Any]) -> tuple[str, ...]:
+    from ..people.child import pickup_identity
+    return pickup_identity(p["full_name"], _txt(p.get("phone")), _txt(p.get("id_card")))
+
+
+def pickup_person_rows(persons: Any) -> dict[str, Rowset]:
+    """Mỗi người đón hộ (gộp các trẻ cùng được người đó đón) -> một dòng MN_DM_NGUOI_DON_HO.
+    Cùng số CCCD mà khác họ tên / SĐT là dữ liệu mâu thuẫn -> báo lỗi thay vì ghi một bên."""
+    rows: dict[str, Rowset] = {}
+    for person in persons:
+        data = person.to_dict() if hasattr(person, "to_dict") else person
+        key = pickup_person_id(_pickup_identity(data))
+        row = (key, data["full_name"], _txt(data.get("phone")), _s(data.get("id_card")))
+        existing = rows.get(key)
+        if existing is not None and existing["MN_DM_NGUOI_DON_HO"][0] != row:
+            raise DataStoreError(f"Số CCCD {data.get('id_card')} đang ghi cho hai người đón hộ khác nhau "
+                                 f"('{existing['MN_DM_NGUOI_DON_HO'][0][1]}' và '{data['full_name']}'). "
+                                 "Hãy sửa lại cho thống nhất rồi lưu.")
+        rows[key] = {"MN_DM_NGUOI_DON_HO": [row]}
+    return rows
+
+
+def employee_type_label(employee_id: str) -> str:
+    """Giáo viên / Nhân viên suy ra từ mã nhân sự (Txxx / NVxxx) - không lưu cột riêng."""
+    from ..hr.employees import Staff
+    return "Nhân viên" if employee_id.startswith(Staff.PREFIX) else "Giáo viên"
 
 
 def _enc_user(d: dict[str, Any]) -> Rowset:
@@ -648,8 +692,8 @@ def _enc_child(d: dict[str, Any]) -> Rowset:
                        _date_in(d.get("enrollment_date")), _txt(d.get("status")), _date_in(d.get("leave_date")),
                        _b(d.get("is_poor_household")), _txt(d.get("notes")))],
         "MN_DM_TRE_PHU_HUYNH": [(d["id"], pid, i) for i, pid in enumerate(d.get("parent_ids") or [], 1)],
-        "MN_DM_NGUOI_DON_HO": [(d["id"], i, p.get("full_name", ""), _txt(p.get("relationship")), _txt(p.get("phone")),
-                                _txt(p.get("id_card"))) for i, p in enumerate(d.get("pickup_persons") or [], 1)],
+        "MN_DM_TRE_NGUOI_DON_HO": [(d["id"], pickup_person_id(_pickup_identity(p)), i, _txt(p.get("relationship")))
+                                   for i, p in enumerate(d.get("pickup_persons") or [], 1)],
         "MN_NV_DANG_KY_DICH_VU": [(d["id"], name, i) for i, name in enumerate(d.get("extra_services") or [], 1)],
     }
 
@@ -816,7 +860,8 @@ def _decode(tables: dict[str, list[dict[str, Any]]]) -> dict[str, Any]:
     payroll_rows = by("MN_NV_BANG_LUONG_CHI_TIET", "KY_LUONG")
     payload["payroll"] = {r["KY_LUONG"]: {
         "closed_at": _dt_out(r["CHOT_LUC"], seconds=True), "by": r["NGUOI_CHOT"] or "",
-        "rows": [{"employee_id": x["MA_NHAN_SU"], "name": x["HO_TEN"] or "", "type": x["LOAI"] or "",
+        "rows": [{"employee_id": x["MA_NHAN_SU"], "name": x["HO_TEN"] or "",
+                  "type": employee_type_label(x["MA_NHAN_SU"]),
                   "position": x["CHUC_VU"] or "", "salary": int(x["THUC_LINH"]), "note": x["CACH_TINH"] or ""}
                  for x in sorted(payroll_rows.get(r["KY_LUONG"], []), key=lambda x: x["STT"])]}
         for r in tables.get("MN_NV_BANG_LUONG", [])}
@@ -861,7 +906,8 @@ def _decode(tables: dict[str, list[dict[str, Any]]]) -> dict[str, Any]:
 
     # ---- trẻ, phụ huynh, lớp
     links = by("MN_DM_TRE_PHU_HUYNH", "MA_TRE")
-    pickups = by("MN_DM_NGUOI_DON_HO", "MA_TRE")
+    pickups = by("MN_DM_TRE_NGUOI_DON_HO", "MA_TRE")
+    pickup_people = {r["MA_NGUOI_DON"]: r for r in tables.get("MN_DM_NGUOI_DON_HO", [])}
     services_of = by("MN_NV_DANG_KY_DICH_VU", "MA_TRE")
     children = []
     for r in tables.get("MN_DM_TRE", []):
@@ -870,8 +916,10 @@ def _decode(tables: dict[str, list[dict[str, Any]]]) -> dict[str, Any]:
              "address": r["DIA_CHI"] or "", "class_id": r["MA_LOP"], "is_poor_household": bool(r["HO_NGHEO"]),
              "notes": r["GHI_CHU"] or "", "leave_date": _date_out(r["NGAY_THOI_HOC"]),
              "parent_ids": [x["MA_PHU_HUYNH"] for x in sorted(links.get(r["MA_TRE"], []), key=lambda x: x["THU_TU"])],
-             "pickup_persons": [{"full_name": x["HO_TEN"], "relationship": x["QUAN_HE"] or "",
-                                 "phone": x["SO_DIEN_THOAI"] or "", "id_card": x["SO_CCCD"] or ""}
+             "pickup_persons": [{"full_name": pickup_people[x["MA_NGUOI_DON"]]["HO_TEN"],
+                                 "relationship": x["QUAN_HE"] or "",
+                                 "phone": pickup_people[x["MA_NGUOI_DON"]]["SO_DIEN_THOAI"] or "",
+                                 "id_card": pickup_people[x["MA_NGUOI_DON"]]["SO_CCCD"] or ""}
                                 for x in sorted(pickups.get(r["MA_TRE"], []), key=lambda x: x["STT"])],
              "extra_services": [x["TEN_DICH_VU"] for x in sorted(services_of.get(r["MA_TRE"], []),
                                                                   key=lambda x: x["THU_TU"])]}

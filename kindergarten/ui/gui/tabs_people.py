@@ -185,9 +185,16 @@ class PickupDialog(tk.Toplevel):
 
     def _open_form(self, title: str, person: PickupPerson | None,
                    submit: Callable[[dict[str, Any]], Any]) -> None:
+        self._synced: list[Child] = []
         dialog = FormDialog(self, title, self._fields(person), submit)
         self.wait_window(dialog)
         self._after_change(dialog.submitted, dialog.result)
+
+    def _save(self, values: dict[str, Any], old_name: str | None = None) -> PickupPerson:
+        """Thêm / sửa qua tầng nghiệp vụ: cùng một người đón nhiều trẻ thì cập nhật cho cả các trẻ đó."""
+        person = PickupPerson(**values)
+        self._synced = self.tab.system.save_pickup_person(self.child.id, person, old_name)
+        return person
 
     def _after_change(self, changed: bool, person: PickupPerson | None = None) -> None:
         if changed:
@@ -197,20 +204,25 @@ class PickupDialog(tk.Toplevel):
             if person is not None and self.m_fg_list.tree.exists(person.full_name):
                 self.m_fg_list.tree.selection_set(person.full_name)
                 self.m_fg_list.tree.see(person.full_name)
+            synced = getattr(self, "_synced", [])
+            if synced:
+                messagebox.showinfo("Đã cập nhật theo", "Người này cũng đang được ủy quyền đón: "
+                                    + ", ".join(c.full_name for c in synced)
+                                    + ".\nThông tin họ tên, SĐT, CCCD đã được cập nhật cho cả các trẻ đó.", parent=self)
         if self.winfo_exists():
             self.grab_set()   # hộp thoại con đã nhả grab khi đóng
             self.m_fg_list.tree.focus_set()
 
     # ------------------------------------------------------------------ thao tác
     def add(self) -> None:
-        self._open_form("Thêm người đón hộ", None, lambda v: self.child.add_pickup_person(PickupPerson(**v)))
+        self._open_form("Thêm người đón hộ", None, self._save)
 
     def edit(self) -> None:
         person = self._selected()
         if person is None:
             return
         self._open_form(f"Sửa người đón hộ - {person.full_name}", person,
-                        lambda v: self.child.replace_pickup_person(person.full_name, PickupPerson(**v)))
+                        lambda v: self._save(v, person.full_name))
 
     def remove(self) -> None:
         person = self._selected()

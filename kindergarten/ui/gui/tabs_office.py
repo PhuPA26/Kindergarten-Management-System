@@ -491,7 +491,7 @@ class SystemTab(BaseTab):
         self.button(data, "Lưu dữ liệu ngay", self.save_now, P.MANAGE_DATA)
         self.button(data, "Sao lưu dữ liệu", self.backup, P.MANAGE_DATA)
         self.button(data, "Khôi phục từ bản sao lưu", self.restore, P.MANAGE_DATA)
-        self.button(data, "Mở thư mục sao lưu", lambda: open_folder(self.system.store.data_dir.resolve()))
+        self.button(data, "Mở thư mục sao lưu", self.open_backup_folder)
         if self.app.seed_func is not None:
             self.button(data, "Nạp lại dữ liệu mẫu", self.reseed, P.MANAGE_DATA)
         self.m_lbl_meta = ttk.Label(data, style="Muted.TLabel")
@@ -634,6 +634,11 @@ class SystemTab(BaseTab):
 
     def backup(self) -> None:
         self.guard(self.system.backup, success=lambda path: f"Đã sao lưu vào {path}")
+
+    def open_backup_folder(self) -> None:
+        folder = self.system.store.backup_dir.resolve()
+        folder.mkdir(parents=True, exist_ok=True)
+        open_folder(folder)
 
     def restore(self) -> None:
         """P07: khôi phục từ bản sao lưu; hiện trạng được sao lưu trước, sau đó đăng nhập lại."""

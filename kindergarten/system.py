@@ -25,7 +25,8 @@ from .classroom.classroom import Classroom
 from .classroom.timetable import Timetable
 from .core.base_model import BaseModel
 from .core.person import Employee
-from .exceptions import (DuplicateIdError, KindergartenError, PermissionDeniedError, ValidationError)
+from .exceptions import (DuplicateIdError, KindergartenError, NotFoundError, PermissionDeniedError,
+                         ValidationError)
 from .finance.invoice import Payment
 from .finance.invoice_manager import InvoiceManager
 from .finance.settings import FeeSettings
@@ -33,7 +34,7 @@ from .health.health_manager import HealthManager
 from .hr.employee_manager import EmployeeManager
 from .hr.employees import Teacher
 from .nutrition.menu_manager import MenuManager
-from .people.child import Child
+from .people.child import Child, PickupPerson
 from .people.managers import ChildManager, ParentManager
 from .daily.daily_manager import DailyManager
 from .teaching.lesson_log import LessonLogManager
@@ -548,6 +549,53 @@ class KindergartenSystem:
         people = [(p.full_name, p.relationship, p.phone) for p in self.parents.parents_of(child.id)]
         people += [(p.full_name, p.relationship, p.phone) for p in child.pickup_persons]
         return people
+
+    def save_pickup_person(self, child_id: str, person: PickupPerson, old_name: str | None = None) -> list[Child]:
+        """Thêm (old_name=None) hoặc sửa một người đón hộ của trẻ.
+
+        Một người có thể được ủy quyền đón nhiều trẻ (VD ông nội đón cả hai anh em). CSDL lưu MỖI NGƯỜI MỘT DÒNG
+        trong MN_DM_NGUOI_DON_HO (đạt BCNF: số CCCD xác định họ tên, SĐT), quan hệ với từng trẻ nằm ở
+        MN_DM_TRE_NGUOI_DON_HO. Vì vậy:
+        - số CCCD đã ghi cho người đón khác họ tên ở trẻ khác -> từ chối (nhập nhầm CCCD hoặc họ tên);
+        - sửa họ tên / SĐT / CCCD của một người -> cập nhật cho mọi trẻ người đó đang đón (quan hệ với từng trẻ
+          giữ nguyên). Trả về các trẻ khác được cập nhật theo."""
+        child = self.children.get(child_id)
+        self.ensure_child_access(child)
+        if self.auth.current_user is not None:
+            self.auth.check_permission(Permission.MANAGE_CHILDREN)
+        old = child.find_pickup_person(old_name) if old_name is not None else None
+        if old_name is not None and old is None:
+            raise NotFoundError(f"Không có '{old_name}' trong danh sách người đón hộ của {child.full_name}.")
+        targets: list[tuple[Child, PickupPerson]] = []   # cùng người đó ở các trẻ khác
+        for other in self.children:
+            if other is child:
+                continue
+            for p in other.pickup_persons:
+                same_card = bool(person.id_card) and p.id_card == person.id_card
+                if old is not None and p.identity == old.identity:
+                    targets.append((other, p))
+                elif same_card:
+                    if p.full_name != person.full_name:
+                        raise ValidationError(f"Số CCCD {person.id_card} đã ghi cho người đón hộ '{p.full_name}' "
+                                              f"của trẻ {other.full_name}. Kiểm tra lại họ tên hoặc số CCCD.")
+                    targets.append((other, p))
+        saved = {c.id: c.pickup_persons for c in [child] + [o for o, _p in targets]}
+        try:
+            if old is None:
+                child.add_pickup_person(person)
+            else:
+                child.replace_pickup_person(old.full_name, person)
+            for other, p in targets:
+                other.replace_pickup_person(p.full_name, PickupPerson(person.full_name, p.relationship, person.phone,
+                                                                      person.id_card))
+        except KindergartenError:
+            for c in [child] + [o for o, _p in targets]:   # lỗi giữa chừng: trả lại như cũ cho mọi trẻ
+                c.restore_pickup_persons(saved[c.id])
+            raise
+        synced = list({o.id: o for o, _p in targets}.values())
+        self.audit("Sửa người đón hộ" if old else "Thêm người đón hộ", str(child),
+                   {"person": person.full_name, "synced": [c.id for c in synced]})
+        return synced
 
     def verify_pickup(self, child_id: str, person_name: str, on_date: Any = None) -> str:
         """Xác nhận người đến đón; chỉ hợp lệ khi trẻ đã được điểm danh CÓ MẶT và người đón có trong danh sách

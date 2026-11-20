@@ -2,7 +2,7 @@
 
 ## CSDL nằm ở đâu
 
-Toàn bộ dữ liệu (42 bảng) nằm trong **một file duy nhất**: `data/ql_mam_non.db`.
+Toàn bộ dữ liệu (43 bảng) nằm trong **một file duy nhất**: `data/ql_mam_non.db`.
 - Không cần cài MySQL hay bất kỳ máy chủ nào: SQLite có sẵn trong Python.
 - Chương trình tự tạo file này ở lần chạy đầu. Nếu thư mục `data/` có các file JSON cũ, chương trình tự chuyển chúng sang.
 - Muốn mở một file CSDL khác (ví dụ file bạn cùng nhóm gửi): `python main.py --gui --db D:\duong_dan\ql_mam_non.db`.
@@ -12,7 +12,7 @@ Toàn bộ dữ liệu (42 bảng) nằm trong **một file duy nhất**: `data/
 1. Tải bản miễn phí ở <https://sqlitebrowser.org/dl/> (Windows: *DB Browser for SQLite - Standard installer for 64-bit Windows*).
 2. Mở chương trình, bấm **Open Database** và chọn file `data\ql_mam_non.db`.
 3. Có 4 thẻ:
-   - **Database Structure**: danh sách 42 bảng, các cột, khóa chính / khóa ngoại.
+   - **Database Structure**: danh sách 43 bảng, các cột, khóa chính / khóa ngoại.
    - **Browse Data**: chọn bảng trong ô *Table*, dữ liệu hiện như Excel. Bấm tiêu đề cột để sắp xếp, gõ vào ô *Filter* để lọc.
    - **Execute SQL**: dán câu lệnh trong `03_truy_van_mau.sql` rồi bấm ▶.
    - **Edit Pragmas**: các thiết lập của file CSDL.
@@ -39,7 +39,7 @@ Cách làm khuyến nghị:
 | Mỗi người có dữ liệu để chạy thử | Chạy `python main.py --seed` để tạo dữ liệu mẫu giống nhau (20 trẻ, 3 lớp...) |
 | Cần dùng đúng dữ liệu của bạn kia | Bạn kia **tắt chương trình**, gửi file `data\ql_mam_non.db` (qua Zalo, Drive, USB...). Bạn **tắt chương trình**, chép đè vào `data\` của mình (nên đổi tên file cũ thành `ql_mam_non_cu.db` trước để giữ lại) |
 | Chọn một "bản chính" | Thống nhất một người giữ file dữ liệu chính (VD để nộp / demo). Người kia sửa thì gửi lại file, hoặc gửi danh sách việc cần sửa để người giữ file làm |
-| Sao lưu | Trong chương trình: *Quản trị hệ thống → Hệ thống → Sao lưu dữ liệu* (tạo file `.zip` trong `data\backups\`). Hoặc đơn giản là chép file `.db` khi chương trình đang tắt |
+| Sao lưu | Trong chương trình: *Quản trị hệ thống → Hệ thống → Sao lưu dữ liệu* (tạo một file `.db` hoàn chỉnh trong `data\backups\`, chụp được cả khi chương trình đang mở; mở được bằng DB Browser). Hoặc đơn giản là chép file `.db` khi chương trình đang tắt |
 | Sửa thiết kế bảng | Sửa trong `kindergarten/storage/schema.py`, chạy `python Database/sinh_tai_lieu_csdl.py` để cập nhật tài liệu, đẩy code lên Git. Báo người kia `git pull` |
 
 Trên **cùng một máy**, có thể mở 2 cửa sổ chương trình trên cùng file. Mỗi cửa sổ tự nhận thay đổi của cửa sổ kia

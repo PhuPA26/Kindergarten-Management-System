@@ -1,5 +1,5 @@
 -- ====================================================================================================
--- CSDL QUẢN LÝ NHÀ TRẺ - MẪU GIÁO (thiết kế v2) - tự sinh bởi Database/sinh_tai_lieu_csdl.py
+-- CSDL QUẢN LÝ NHÀ TRẺ - MẪU GIÁO (thiết kế v3) - tự sinh bởi Database/sinh_tai_lieu_csdl.py
 -- Quy ước tên bảng: SUB_SYSTEM + PURPOSE_TYPE + NAME  (MN = Mầm non; HT = hệ thống, DM = danh mục, NV = nghiệp vụ)
 -- CSDL SQLite: file data/ql_mam_non.db. Chương trình TỰ tạo file và các bảng này ở lần chạy đầu -
 -- file này chỉ để xem / tạo thủ công (DB Browser for SQLite: New Database > Execute SQL > dán > ▶).
@@ -150,15 +150,24 @@ CREATE TABLE IF NOT EXISTS "MN_DM_TRE_PHU_HUYNH" ( /* Quan hệ n-n giữa trẻ
   CONSTRAINT "FK_MN_DM_TRE_PHU_HUYNH_2" FOREIGN KEY ("MA_PHU_HUYNH") REFERENCES "MN_DM_PHU_HUYNH" ("MA_PHU_HUYNH") ON DELETE CASCADE ON UPDATE CASCADE
 );
 
-CREATE TABLE IF NOT EXISTS "MN_DM_NGUOI_DON_HO" ( /* Người được phép đón trẻ thay bố mẹ */
-  "MA_TRE" VARCHAR(20) NOT NULL /* Trẻ */,
-  "STT" INT NOT NULL /* Số thứ tự */,
+CREATE TABLE IF NOT EXISTS "MN_DM_NGUOI_DON_HO" ( /* Người được phép đón trẻ thay bố mẹ (mỗi người một dòng) */
+  "MA_NGUOI_DON" VARCHAR(20) NOT NULL /* Mã người đón hộ (ND + mã băm theo CCCD, hoặc họ tên + SĐT khi chưa có CCCD) */,
   "HO_TEN" VARCHAR(150) NOT NULL /* Họ tên */,
-  "QUAN_HE" VARCHAR(50) /* Quan hệ với trẻ */,
   "SO_DIEN_THOAI" VARCHAR(20) /* Số điện thoại */,
-  "SO_CCCD" VARCHAR(20) /* Số CCCD */,
-  CONSTRAINT "PK_MN_DM_NGUOI_DON_HO" PRIMARY KEY ("MA_TRE", "STT"),
-  CONSTRAINT "FK_MN_DM_NGUOI_DON_HO_1" FOREIGN KEY ("MA_TRE") REFERENCES "MN_DM_TRE" ("MA_TRE") ON DELETE CASCADE ON UPDATE CASCADE
+  "SO_CCCD" VARCHAR(20) /* Số CCCD (NULL = chưa khai) */,
+  CONSTRAINT "PK_MN_DM_NGUOI_DON_HO" PRIMARY KEY ("MA_NGUOI_DON"),
+  CONSTRAINT "UQ_MN_DM_NGUOI_DON_HO_SO_CCCD" UNIQUE ("SO_CCCD")
+);
+
+CREATE TABLE IF NOT EXISTS "MN_DM_TRE_NGUOI_DON_HO" ( /* Quan hệ n-n giữa trẻ và người đón hộ */
+  "MA_TRE" VARCHAR(20) NOT NULL /* Trẻ */,
+  "MA_NGUOI_DON" VARCHAR(20) NOT NULL /* Người đón hộ */,
+  "STT" INT NOT NULL /* Thứ tự trong danh sách người đón hộ của trẻ */,
+  "QUAN_HE" VARCHAR(50) /* Quan hệ với trẻ (Ông nội, Bà ngoại...) */,
+  CONSTRAINT "PK_MN_DM_TRE_NGUOI_DON_HO" PRIMARY KEY ("MA_TRE", "MA_NGUOI_DON"),
+  CONSTRAINT "UQ_MN_DM_TRE_NGUOI_DON_HO_MA_TRE_STT" UNIQUE ("MA_TRE", "STT"),
+  CONSTRAINT "FK_MN_DM_TRE_NGUOI_DON_HO_1" FOREIGN KEY ("MA_TRE") REFERENCES "MN_DM_TRE" ("MA_TRE") ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT "FK_MN_DM_TRE_NGUOI_DON_HO_2" FOREIGN KEY ("MA_NGUOI_DON") REFERENCES "MN_DM_NGUOI_DON_HO" ("MA_NGUOI_DON") ON DELETE CASCADE ON UPDATE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS "MN_DM_MON_AN" ( /* Danh mục món ăn */
@@ -295,7 +304,6 @@ CREATE TABLE IF NOT EXISTS "MN_NV_HOA_DON_KHOAN_PHI" ( /* Các khoản phí tron
   "TEN_KHOAN" VARCHAR(100) NOT NULL /* Tên khoản phí */,
   "DON_GIA" BIGINT NOT NULL /* Đơn giá (học phí tháng / tiền ăn 1 ngày / giá dịch vụ) */,
   "SO_LUONG" INT /* Số ngày ăn hoặc số lượng (NULL với học phí tháng) */,
-  "THANH_TIEN" BIGINT GENERATED ALWAYS AS (DON_GIA * IFNULL(SO_LUONG, 1)) STORED /* = DON_GIA x SO_LUONG (cột tính toán) */,
   CONSTRAINT "PK_MN_NV_HOA_DON_KHOAN_PHI" PRIMARY KEY ("MA_HOA_DON", "STT"),
   CONSTRAINT "FK_MN_NV_HOA_DON_KHOAN_PHI_1" FOREIGN KEY ("MA_HOA_DON") REFERENCES "MN_NV_HOA_DON" ("MA_HOA_DON") ON DELETE CASCADE ON UPDATE CASCADE
 );
@@ -470,13 +478,13 @@ CREATE TABLE IF NOT EXISTS "MN_NV_BANG_LUONG" ( /* Bảng lương tháng đã ch
 CREATE TABLE IF NOT EXISTS "MN_NV_BANG_LUONG_CHI_TIET" ( /* Lương từng nhân sự trong bảng lương đã chốt (số liệu cố định) */
   "KY_LUONG" VARCHAR(10) NOT NULL /* Kỳ lương */,
   "STT" INT NOT NULL /* Số thứ tự */,
-  "MA_NHAN_SU" VARCHAR(20) NOT NULL /* Nhân sự (lưu lại, không ràng buộc) */,
-  "HO_TEN" VARCHAR(150) /* Họ tên */,
-  "LOAI" VARCHAR(30) /* Giáo viên / Nhân viên */,
-  "CHUC_VU" VARCHAR(100) /* Chức vụ */,
+  "MA_NHAN_SU" VARCHAR(20) NOT NULL /* Nhân sự (lưu lại, không ràng buộc; Txxx = giáo viên, NVxxx = nhân viên) */,
+  "HO_TEN" VARCHAR(150) /* Họ tên tại thời điểm chốt */,
+  "CHUC_VU" VARCHAR(100) /* Chức vụ tại thời điểm chốt */,
   "THUC_LINH" BIGINT NOT NULL /* Thực lĩnh (đồng) */,
   "CACH_TINH" VARCHAR(255) /* Diễn giải cách tính */,
   CONSTRAINT "PK_MN_NV_BANG_LUONG_CHI_TIET" PRIMARY KEY ("KY_LUONG", "STT"),
+  CONSTRAINT "UQ_MN_NV_BANG_LUONG_CHI_TIET_KY_LUONG_MA_NHAN_SU" UNIQUE ("KY_LUONG", "MA_NHAN_SU"),
   CONSTRAINT "FK_MN_NV_BANG_LUONG_CHI_TIET_1" FOREIGN KEY ("KY_LUONG") REFERENCES "MN_NV_BANG_LUONG" ("KY_LUONG") ON DELETE CASCADE ON UPDATE CASCADE
 );
 
@@ -536,4 +544,4 @@ CREATE INDEX IF NOT EXISTS "IX_MN_NV_BAO_CAO_NGUOI_LAP" ON "MN_NV_BAO_CAO" ("NGU
 
 CREATE INDEX IF NOT EXISTS "IX_MN_NV_BAO_CAO_TRANG_THAI" ON "MN_NV_BAO_CAO" ("TRANG_THAI");
 
-INSERT OR IGNORE INTO "MN_HT_PHIEN_BAN" ("MA_PHIEN_BAN", "SO_PHIEN_BAN", "PHIEN_BAN_LUOC_DO") VALUES (1, 0, 2);
+INSERT OR IGNORE INTO "MN_HT_PHIEN_BAN" ("MA_PHIEN_BAN", "SO_PHIEN_BAN", "PHIEN_BAN_LUOC_DO") VALUES (1, 0, 3);

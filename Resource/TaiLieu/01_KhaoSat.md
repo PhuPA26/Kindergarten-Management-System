@@ -115,7 +115,7 @@ tháng, công nợ, bảng lương tháng, sĩ số toàn trường, tổng hợ
 Trẻ, phụ huynh, người đón hộ, nhân sự (giáo viên, nhân viên), lớp, khối, thời khóa biểu, điểm danh - đón trả, đơn xin
 nghỉ, nhật ký ăn ngủ, tin nhắn, cân đo, dị ứng, món ăn - thành phần, thực đơn, dịch vụ, hóa đơn - khoản phí - phiếu thu,
 bảng lương, báo cáo, tài khoản, tham số (học phí, tiền ăn, tỷ lệ miễn giảm, lương cơ sở), ngày nghỉ lễ.
-→ thiết kế thành 42 bảng: `Database/thiet_ke_csdl.md`.
+→ thiết kế thành 43 bảng: `Database/thiet_ke_csdl.md`.
 
 ### D. Quy trình
 1. **Một ngày ở trường (6 bước):** ① Đón trẻ 7h00-8h00 → ② Điểm danh 8h00-8h30 → ③ Cập nhật ăn ngủ 10h30-14h00 →

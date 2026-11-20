@@ -30,20 +30,20 @@ Theo hướng dẫn: **Project Setup → (Develop, Test & Feedback) lặp lại 
 | `test_core.py` | Kiểm thử nền tảng: exceptions (T01), BaseModel (T02), BaseManager (T03), Person/Employee (T04), utils (T05). | 8 |
 | `test_datastore.py` | Kiểm thử DataStore lưu/đọc JSON (T30) và dữ liệu mẫu (T31). | 4 |
 | `test_finance.py` | Kiểm thử Fee (T21), Discount (T22), Invoice/Payment (T23), InvoiceManager (T24). | 5 |
-| `test_gui_smoke.py` | Kiểm thử khói giao diện Tkinter: với MỖI tài khoản mẫu (mỗi phân hệ), đăng nhập, mở lần lượt mọi form của phân hệ, | 4 |
+| `test_gui_smoke.py` | Kiểm thử khói giao diện Tkinter: với MỖI tài khoản mẫu (mỗi phân hệ), đăng nhập, mở lần lượt mọi form của phân hệ, | 13 |
 | `test_health.py` | Kiểm thử HealthRecord (T12), Vaccination, Allergy, HealthManager (T13). | 4 |
 | `test_hr.py` | Kiểm thử Teacher/Staff tính lương đa hình (T14) và EmployeeManager (T15). | 4 |
 | `test_nutrition.py` | Kiểm thử Meal/Menu (T25) và MenuManager - cảnh báo dị ứng (T26). | 3 |
-| `test_people.py` | Kiểm thử Parent (T09), Child (T10), ChildManager/ParentManager (T11). | 6 |
+| `test_people.py` | Kiểm thử Parent (T09), Child (T10), ChildManager/ParentManager (T11). | 7 |
 | `test_portals_daily.py` | Kiểm thử các yêu cầu mới: 5 phân hệ theo vai trò, tự đăng ký tài khoản, vận hành hằng ngày 6 bước, | 9 |
 | `test_reports.py` | Kiểm thử Report và các báo cáo (T27), export .txt/.csv (T28), Dashboard (T29). | 3 |
 | `test_review_fixes.py` | Kiểm thử hồi quy cho các lỗi trong 'Báo cáo rà soát hệ thống' (mục 8: L01-L27, P01, P03). | 25 |
-| `test_sqlite_store.py` | Kiểm thử lưu trữ SQLite - thiết kế CSDL v2 (42 bảng, file data/ql_mam_non.db). | 8 |
+| `test_sqlite_store.py` | Kiểm thử lưu trữ SQLite - thiết kế CSDL v3 (43 bảng đạt BCNF, file data/ql_mam_non.db). | 12 |
 | `test_subsystems_reports.py` | Kiểm thử: phân hệ chỉ giữ chức năng đúng nhiệm vụ; đón trẻ đồng bộ điểm danh; quy trình gửi - duyệt báo cáo. | 5 |
 | `test_teaching.py` | GV chủ nhiệm và GV bộ môn có công việc khác nhau; sổ tiết dạy bộ môn (nghiệp vụ riêng của GV bộ môn). | 5 |
-| **Tổng** | (chưa tính các lần chạy lặp theo tham số, VD test giao diện chạy cho 12 tài khoản) | **114** |
+| **Tổng** | (chưa tính các lần chạy lặp theo tham số, VD test giao diện chạy cho 12 tài khoản) | **128** |
 
-**Kết quả lần chạy 17/11/2026 22:45:** `143 passed in 37.58s`
+**Kết quả lần chạy 21/11/2026 01:13:** `147 passed, 13 skipped in 39.04s`
 <!-- TESTS:END -->
 
 ## 4. Kịch bản kiểm thử tay

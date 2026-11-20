@@ -35,7 +35,7 @@ Phần tự động của tài liệu sinh lại bằng `python Resource/TaiLieu
 
 ### Lần chạy đầu
 1. Chạy chương trình (`python main.py --gui` hoặc F5 trong Visual Studio).
-2. Chương trình tự tạo file `data/ql_mam_non.db` với 42 bảng (thiết kế: `Database/thiet_ke_csdl.md`, câu lệnh:
+2. Chương trình tự tạo file `data/ql_mam_non.db` với 43 bảng (thiết kế: `Database/thiet_ke_csdl.md`, câu lệnh:
    `Database/01_tao_csdl.sql`). Nếu `data/` có các file JSON cũ, dữ liệu được tự chuyển sang; nếu không, chương trình
    hỏi có nạp dữ liệu mẫu không.
 3. **Làm nhóm 2 người**: xem `Database/HUONG_DAN_LAM_VIEC_NHOM.md` (mỗi người một file `.db`, trao đổi file khi cần).
@@ -142,7 +142,7 @@ HTTTQL_NhaTreMauGiao/
 │   ├── finance/             T21-T24 - Fee..., Discount, Invoice, Payment, InvoiceManager, FeeSettings
 │   ├── nutrition/           T25-T26 - Meal, Menu, MenuManager
 │   ├── reports/             T27-T29 - Report và các báo cáo, export(), Dashboard
-│   ├── storage/             T30 - schema.py (42 bảng), SQLiteDataStore (sqlite_store.py), DataStore (datastore.py, JSON cũ)
+│   ├── storage/             T30 - schema.py (43 bảng), SQLiteDataStore (sqlite_store.py), DataStore (datastore.py, JSON cũ)
 │   ├── school_calendar.py   Lịch năm học: ngày nghỉ lễ, học Thứ 7 (dùng chung cho điểm danh/tiền ăn/thực đơn)
 │   ├── daily/               Vận hành hằng ngày: DailyLog (ăn ngủ), Message (nhắn/dặn thuốc/xin nghỉ), DailyManager
 │   ├── applog.py            Nhật ký lỗi (xoay vòng) và nhật ký thao tác audit.jsonl
@@ -153,7 +153,7 @@ HTTTQL_NhaTreMauGiao/
 ├── Database/                (Solution Folder) thiết kế CSDL, câu lệnh tạo bảng, truy vấn mẫu, hướng dẫn dùng CSDL
 ├── Dlllib/                  (Solution Folder) thư viện ngoài - dự án chỉ dùng thư viện chuẩn của Python
 ├── Resource/                (Solution Folder) Icons/ - biểu tượng; TaiLieu/ - tài liệu khảo sát, phân tích, thiết kế...
-├── data/                    ql_mam_non.db - file CSDL SQLite; backups/ - các bản sao lưu .zip; file JSON cũ
+├── data/                    ql_mam_non.db - file CSDL SQLite; backups/ - các bản sao lưu .db; file JSON cũ
 ├── exports/                 (tự tạo) báo cáo xuất ra .txt / .csv
 └── logs/                    (tự tạo) error.log khi có lỗi ngoài dự kiến
 ```
@@ -191,7 +191,7 @@ HTTTQL_NhaTreMauGiao/
 | T27 | Report | `reports/reports.py`: `EnrollmentReport`, `AttendanceReport`, `RevenueReport`, `DebtReport` (+ `PayrollReport`) |
 | T28 | export() | `Report.export()` → `.txt` hoặc `.csv` (UTF-8 có BOM, mở đúng tiếng Việt bằng Excel) |
 | T29 | Dashboard | `reports/dashboard.py` |
-| T30 | DataStore | `storage/sqlite_store.py`: `save_all()`, `load_all()` với **SQLite** (module `sqlite3`, giao dịch, chỉ ghi đối tượng thay đổi), sao lưu / khôi phục; `storage/schema.py`: 42 bảng + chuyển đối tượng ↔ dòng; `storage/datastore.py`: bản JSON cũ |
+| T30 | DataStore | `storage/sqlite_store.py`: `save_all()`, `load_all()` với **SQLite** (module `sqlite3`, giao dịch, chỉ ghi đối tượng thay đổi), sao lưu / khôi phục; `storage/schema.py`: 43 bảng + chuyển đối tượng ↔ dòng; `storage/datastore.py`: bản JSON cũ |
 | T31 | seed_data.py | `seed_data.py` |
 | T32 | main.py | `main.py` + `system.py` |
 | T33 | tests/ | `tests/test_*.py` - 143 test (gồm `test_gui_smoke.py` mở mọi form của mọi phân hệ, `test_review_fixes.py` cho báo cáo rà soát, `test_portals_daily.py` cho 5 phân hệ và vận hành hằng ngày) |
@@ -284,7 +284,7 @@ Phần **tiêm chủng đã được bỏ** theo yêu cầu (file `vaccinations.
 ## 9. Dữ liệu và báo cáo
 
 - Dữ liệu lưu trong CSDL **SQLite** - file `data/ql_mam_non.db` (UTF-8, tiếng Việt đầy đủ), thiết kế theo *Hướng dẫn xây dựng
-  HTTTQL*: 42 bảng chuẩn hóa, tên bảng `MN_<HT|DM|NV>_<TÊN>` (HT = quản trị hệ thống, DM = danh mục, NV = nghiệp vụ),
+  HTTTQL*: 43 bảng chuẩn hóa, tên bảng `MN_<HT|DM|NV>_<TÊN>` (HT = quản trị hệ thống, DM = danh mục, NV = nghiệp vụ),
   khóa chính / khóa ngoại / ràng buộc kiểm tra đầy đủ, quan hệ n-n tách bảng trung gian (trẻ - phụ huynh, trẻ - dịch vụ,
   thực đơn - món ăn...). Chi tiết, sơ đồ ERD và từ điển dữ liệu: `Database/thiet_ke_csdl.md`; 15 truy vấn mẫu:
   `Database/03_truy_van_mau.sql`.
@@ -296,8 +296,10 @@ Phần **tiêm chủng đã được bỏ** theo yêu cầu (file `vaccinations.
 - **Làm nhóm**: mỗi người một file `.db`, trao đổi file khi cần dùng dữ liệu của nhau - xem
   `Database/HUONG_DAN_LAM_VIEC_NHOM.md`. Mở 2 cửa sổ chương trình trên cùng file thì mỗi cửa sổ tự nhận thay đổi
   của cửa sổ kia (bảng `MN_HT_PHIEN_BAN`), không ghi đè khi cùng thêm mới trùng mã.
-- **Sao lưu** (tab Hệ thống / tự động khi nạp dữ liệu mẫu, khôi phục): xuất mọi bảng ra file `.zip` trong `data/backups/`,
-  giữ 10 bản gần nhất + 1 bản mỗi tháng. *Khôi phục* nạp bản `.zip` ngược lại vào CSDL (hiện trạng được sao lưu trước).
+- **Sao lưu** (tab Hệ thống / tự động khi nạp dữ liệu mẫu, khôi phục): chụp nguyên file CSDL thành một file `.db` trong
+  `data/backups/` (sqlite3 backup API - chụp được cả khi chương trình đang mở, đủ 43 bảng, mở được bằng DB Browser),
+  giữ 10 bản gần nhất + 1 bản mỗi tháng. *Khôi phục* kiểm tra và nạp thử bản `.db` trước, rồi mới thay CSDL (hiện trạng
+  được sao lưu trước; nhật ký thao tác giữ nguyên, không bị quay lui). Chế độ `--json` vẫn sao lưu dạng `.zip`.
 - Mã tự sinh được lưu trong bảng `MN_HT_BO_DEM_MA`, nên xóa hồ sơ mã lớn nhất rồi mở lại chương trình cũng không cấp trùng mã.
 - **Nhật ký thao tác** (bảng `MN_HT_NHAT_KY_THAO_TAC`): ai thu tiền, hủy phiếu, đổi cấu hình, giao trẻ, xóa hồ sơ... xem trong tab Hệ thống.
 - Báo cáo xuất ra `exports/`: file `.txt` dạng bảng hoặc `.csv` mở bằng Excel (số liệu được tính lại ngay khi xuất).

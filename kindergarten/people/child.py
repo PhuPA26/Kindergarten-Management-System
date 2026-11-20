@@ -15,6 +15,12 @@ from ..utils import (age_in_months, format_age, format_date, normalize_spaces, n
                      parse_date, require_text, validate_name, validate_phone)
 
 
+def pickup_identity(full_name: str, phone: str, id_card: str) -> tuple[str, ...]:
+    """Nhận diện MỘT người thật: theo số CCCD; chưa có CCCD thì theo họ tên CÓ DẤU (L06) + SĐT.
+    Cùng danh tính = cùng một người (VD ông nội đón cả hai anh em) -> CSDL lưu một dòng."""
+    return ("CCCD", id_card) if id_card else ("TEN_SDT", full_name, phone)
+
+
 @dataclass
 class PickupPerson:
     """Người được phụ huynh ủy quyền đón trẻ hộ (ông bà, cô chú...)."""
@@ -31,6 +37,10 @@ class PickupPerson:
         self.id_card = normalize_spaces(self.id_card)
         if self.id_card and not re.fullmatch(r"\d{9}|\d{12}", self.id_card):
             raise ValidationError("Số CMND/CCCD phải gồm 9 hoặc 12 chữ số.")
+
+    @property
+    def identity(self) -> tuple[str, ...]:
+        return pickup_identity(self.full_name, self.phone, self.id_card)
 
     def to_dict(self) -> dict[str, str]:
         return asdict(self)
@@ -194,8 +204,20 @@ class Child(Person):
             raise ValidationError("Người đón hộ không hợp lệ.")
         if self.find_pickup_person(person.full_name):
             raise ValidationError(f"'{person.full_name}' đã có trong danh sách người đón hộ.")
+        self._check_id_card(person)
         self._pickup_persons.append(person)
         return person
+
+    def _check_id_card(self, person: PickupPerson, old: PickupPerson | None = None) -> None:
+        """Một số CCCD là một người - không ghi cho hai người đón hộ của cùng một trẻ."""
+        same = next((p for p in self._pickup_persons if p is not old and person.id_card
+                     and p.id_card == person.id_card), None)
+        if same is not None:
+            raise ValidationError(f"Số CCCD {person.id_card} đã ghi cho '{same.full_name}' trong danh sách người đón hộ.")
+
+    def restore_pickup_persons(self, persons: list[PickupPerson]) -> None:
+        """Đặt lại nguyên danh sách người đón hộ (dùng để hoàn tác khi thao tác nhiều trẻ bị lỗi giữa chừng)."""
+        self._pickup_persons = list(persons)
 
     def find_pickup_person(self, name: str) -> PickupPerson | None:
         """So khớp đúng họ tên CÓ DẤU (không phân biệt hoa thường) - 'Le Thi Hoa' khác 'Lê Thị Hòa' (L06)."""
@@ -212,6 +234,7 @@ class Child(Person):
         other = self.find_pickup_person(person.full_name)
         if other is not None and other is not old:
             raise ValidationError(f"'{person.full_name}' đã có trong danh sách người đón hộ.")
+        self._check_id_card(person, old)
         self._pickup_persons[self._pickup_persons.index(old)] = person
         return person
 

@@ -53,14 +53,15 @@ WHERE strftime('%Y-%m', d.NGAY) = strftime('%Y-%m', 'now', 'localtime')
 GROUP BY t.MA_TRE, t.HO_TEN, l.TEN_LOP
 ORDER BY TY_LE_PHAN_TRAM;
 
--- 8. Hóa đơn: phải thu - miễn giảm - đã thu (dùng cột tính toán THANH_TIEN, bỏ phiếu thu đã hủy)
+-- 8. Hóa đơn: phải thu - miễn giảm - đã thu (thành tiền = DON_GIA x IFNULL(SO_LUONG, 1) tính khi truy vấn,
+--    không lưu cột riêng để đạt BCNF; bỏ phiếu thu đã hủy)
 SELECT h.MA_HOA_DON, h.TEN_TRE, h.TEN_LOP, printf('%02d/%d', h.THANG, h.NAM) AS KY, h.HAN_NOP,
        pt.TONG_PHI,
        MIN(pt.HOC_PHI, ROUND(pt.HOC_PHI * IFNULL(h.TY_LE_GIAM, 0)) + IFNULL(h.SO_TIEN_GIAM, 0)) AS MIEN_GIAM,
        IFNULL(thu.DA_THU, 0) AS DA_THU
 FROM MN_NV_HOA_DON h
-JOIN (SELECT MA_HOA_DON, SUM(THANH_TIEN) AS TONG_PHI,
-             SUM(CASE WHEN LOAI_PHI = 'MonthlyFee' THEN THANH_TIEN ELSE 0 END) AS HOC_PHI
+JOIN (SELECT MA_HOA_DON, SUM(DON_GIA * IFNULL(SO_LUONG, 1)) AS TONG_PHI,
+             SUM(CASE WHEN LOAI_PHI = 'MonthlyFee' THEN DON_GIA * IFNULL(SO_LUONG, 1) ELSE 0 END) AS HOC_PHI
       FROM MN_NV_HOA_DON_KHOAN_PHI GROUP BY MA_HOA_DON) pt ON pt.MA_HOA_DON = h.MA_HOA_DON
 LEFT JOIN (SELECT MA_HOA_DON, SUM(SO_TIEN) AS DA_THU FROM MN_NV_PHIEU_THU WHERE DA_HUY = 0
            GROUP BY MA_HOA_DON) thu ON thu.MA_HOA_DON = h.MA_HOA_DON
