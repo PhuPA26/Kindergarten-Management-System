@@ -114,7 +114,8 @@ class LoginFrame(ttk.Frame):
         self.username = tk.StringVar()
         self.password = tk.StringVar()
         ttk.Label(form, text="Tên đăng nhập", style="FieldBold.TLabel").grid(row=3, column=0, sticky="w")
-        user_entry = ttk.Entry(form, textvariable=self.username, style="Login.TEntry", font=ui_font(1))
+        user_entry = self.m_txt_username = ttk.Entry(form, textvariable=self.username, style="Login.TEntry",
+                                                     font=ui_font(1))
         user_entry.grid(row=4, column=0, sticky="ew", pady=(px(4), px(14)))
         ttk.Label(form, text="Mật khẩu", style="FieldBold.TLabel").grid(row=5, column=0, sticky="w")
         self.m_txt_password = ttk.Entry(form, textvariable=self.password, show="•", style="Login.TEntry",
@@ -124,8 +125,9 @@ class LoginFrame(ttk.Frame):
         ttk.Checkbutton(form, text="Hiện mật khẩu", variable=self.show_password,
                         command=lambda: self.m_txt_password.configure(show="" if self.show_password.get() else "•")
                         ).grid(row=7, column=0, sticky="w")
-        for entry in (user_entry, self.m_txt_password):
-            entry.bind("<Return>", lambda _e: self.login())
+        # Enter ở ô tên đăng nhập: chưa gõ mật khẩu thì chỉ chuyển xuống ô mật khẩu (không báo sai)
+        user_entry.bind("<Return>", lambda _e: self._username_return())
+        self.m_txt_password.bind("<Return>", lambda _e: self.login())
         self.m_lbl_message = ttk.Label(form, style="CardWarn.TLabel", wraplength=px(380))
         self.m_lbl_message.grid(row=8, column=0, sticky="w", pady=(px(6), 0))
         ttk.Button(form, text="Đăng nhập  →", style="Big.Accent.TButton", command=self.login, cursor="hand2").grid(
@@ -166,12 +168,29 @@ class LoginFrame(ttk.Frame):
             self.m_lbl_message.configure(text="")
             self.m_txt_password.focus_set()
 
+    def _username_return(self) -> None:
+        if self.password.get():
+            self.login()
+        else:
+            self.m_lbl_message.configure(text="")
+            self.m_txt_password.focus_set()
+
     def login(self) -> None:
+        # Ô nào còn trống thì đưa con trỏ tới ô đó - chưa tính là đăng nhập sai (không cộng lần sai)
+        if not self.username.get().strip():
+            self.m_lbl_message.configure(text="Hãy nhập tên đăng nhập.")
+            self.m_txt_username.focus_set()
+            return
+        if not self.password.get():
+            self.m_lbl_message.configure(text="Hãy nhập mật khẩu.")
+            self.m_txt_password.focus_set()
+            return
         try:
             user = self.app.system.auth.login(self.username.get(), self.password.get())
         except AuthenticationError as exc:
             self.m_lbl_message.configure(text=exc.message)
             self.password.set("")
+            self.m_txt_password.focus_set()
             return
         self.app.on_login(user)
 

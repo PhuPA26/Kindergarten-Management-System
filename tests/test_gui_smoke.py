@@ -272,3 +272,23 @@ def test_logout_asks_to_save_unsaved_data(gui_app, monkeypatch, answer):
         assert tab.discarded == 1 and not saves and reloads
         assert application.system.auth.current_user is None
     assert not errors, errors
+
+
+def test_login_enter_on_username_moves_to_password(gui_app, monkeypatch):
+    """Enter ở ô tên đăng nhập khi chưa gõ mật khẩu: chuyển xuống ô mật khẩu, không báo sai, không cộng lần sai."""
+    application, errors = gui_app
+    frame = next(w for w in application.container.winfo_children() if isinstance(w, gui.LoginFrame))
+    attempts: list[tuple] = []
+    real_login = application.system.auth.login
+    monkeypatch.setattr(application.system.auth, "login", lambda *a: attempts.append(a) or real_login(*a))
+    frame.username.set("admin")
+    frame.password.set("")
+    frame._username_return()   # Enter ở ô tên đăng nhập (cửa sổ test bị ẩn nên gọi thẳng hàm gắn với phím)
+    assert not attempts and frame.m_lbl_message.cget("text") == ""
+    frame.login()              # bấm nút Đăng nhập khi chưa có mật khẩu
+    assert not attempts and "sai" not in frame.m_lbl_message.cget("text").lower()
+    frame.password.set("sai-mat-khau")
+    frame._username_return()   # đã có mật khẩu -> Enter là đăng nhập
+    assert attempts and frame.m_lbl_message.cget("text") and frame.password.get() == ""
+    assert application.main is None
+    assert not errors, errors
