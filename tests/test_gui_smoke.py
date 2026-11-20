@@ -292,3 +292,17 @@ def test_login_enter_on_username_moves_to_password(gui_app, monkeypatch):
     assert attempts and frame.m_lbl_message.cget("text") and frame.password.get() == ""
     assert application.main is None
     assert not errors, errors
+
+
+def test_jump_between_functions_has_back_button(gui_app):
+    application, errors = gui_app
+    login_admin(application)
+    main = application.main
+    start = next(i for i, tab in enumerate(main.tabs) if type(tab).__name__ == "ChildrenTab")
+    main.select_tab(start)                                       # mở từ menu trái
+    assert not main.history
+    assert main.show_tab("ParentsTab")                           # mở chức năng khác (không phải con) từ Trẻ
+    assert main.history == [start]
+    main.go_back()
+    assert main.tabs.index(main.current) == start and not main.history
+    assert not errors, errors

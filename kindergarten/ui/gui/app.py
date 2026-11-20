@@ -286,8 +286,10 @@ class MainFrame(ttk.Frame):
         topbar = tk.Frame(right, bg=c["card"], padx=px(24), pady=px(12))
         topbar.pack(fill="x")
         tk.Frame(right, bg=c["border"], height=1).pack(fill="x")
-        titles = tk.Frame(topbar, bg=c["card"])
+        titles = self._titles = tk.Frame(topbar, bg=c["card"])
         titles.pack(side="left")
+        # nút quay về màn hình trước (khi màn hình này được mở từ một chức năng khác)
+        self.m_btn_back = ttk.Button(topbar, command=self.go_back, cursor="hand2")
         self.m_lbl_crumb = tk.Label(titles, font="AppSmall", fg=c["muted"], bg=c["card"])
         self.m_lbl_crumb.pack(anchor="w")
         self.m_lbl_page_title = tk.Label(titles, font="AppPageTitle", fg=c["navy"], bg=c["card"])
@@ -316,6 +318,7 @@ class MainFrame(ttk.Frame):
         self.tabs: list[BaseTab] = []
         self.groups: list[str] = []
         self.current: BaseTab | None = None
+        self.history: list[int] = []   # các màn hình đã đi qua để tới màn hình hiện tại (nút Quay lại)
         for group, classes in NAVIGATION:   # thứ tự form, mã form, thanh menu: theo sơ đồ chức năng F1.x
             for tab_class in classes:
                 if tab_class.permission is None or system.auth.has_permission(tab_class.permission):
@@ -392,23 +395,48 @@ class MainFrame(ttk.Frame):
         self.select_tab(home)
 
     def select_tab(self, index: int) -> None:
+        """Mở một màn hình từ menu trái / thanh menu / Ctrl+N: bắt đầu lại lịch sử."""
         if 0 <= index < len(self.tabs):
-            self._show(index)
+            self._navigate(index, [])
 
     def show_tab(self, class_name: str) -> bool:
+        """Chuyển sang màn hình khác từ trong một chức năng: nhớ màn hình hiện tại để bấm Quay lại."""
         for index, tab in enumerate(self.tabs):
             if type(tab).__name__ == class_name:
-                self.select_tab(index)
+                if self.current is None or self.current not in self.tabs:
+                    self.select_tab(index)
+                else:
+                    self._navigate(index, self.history + [self.tabs.index(self.current)])
                 return True
         return False
 
-    def _show(self, index: int) -> None:
+    def go_back(self) -> None:
+        """Nút Quay lại: về màn hình trước đó."""
+        if self.history:
+            self._navigate(self.history[-1], self.history[:-1])
+
+    def _navigate(self, index: int, history: list[int]) -> None:
+        if index in history:   # quay vòng về màn hình đã đi qua -> bỏ đoạn lịch sử phía sau nó
+            history = history[:history.index(index)]
+        if self._show(index):
+            self.history = history
+            self._update_back()
+
+    def _update_back(self) -> None:
+        if self.history:
+            self.m_btn_back.configure(text=f"⟵  Quay lại: {self.tabs[self.history[-1]].title}")
+            self.m_btn_back.pack(side="left", padx=(0, px(16)), before=self._titles)
+        else:
+            self.m_btn_back.pack_forget()
+
+    def _show(self, index: int) -> bool:
+        """Hiện màn hình index; False nếu người dùng chọn ở lại màn hình đang sửa dở."""
         tab = self.tabs[index]
         if tab is self.current:
-            return
+            return True
         if self.current is not None:
             if hasattr(self.current, "confirm_discard") and not self.current.confirm_discard():
-                return
+                return False
             self.current.pack_forget()
         close_drawer(self.right)   # đổi màn hình thì đóng khung báo cáo đang mở
         tab.pack(fill="both", expand=True)
@@ -422,6 +450,7 @@ class MainFrame(ttk.Frame):
             tab.refresh()
         except KindergartenError as exc:
             messagebox.showerror("Lỗi", exc.message, parent=self)
+        return True
 
     def after_sync(self, writer: str = "") -> None:
         """Sau khi tải lại dữ liệu người khác vừa lưu: làm mới màn hình đang mở và báo nhẹ trên thanh tiêu đề."""
@@ -499,6 +528,7 @@ class KindergartenApp:
         for number in range(1, 10):
             self.root.bind_all(f"<Control-Key-{number}>", lambda _e, i=number - 1: self._select_tab(i))
         self.root.bind_all("<Control-s>", lambda _e: self.save(notify=True) if self.main else None)
+        self.root.bind_all("<Alt-Left>", lambda _e: self.main.go_back() if self.main else None)   # = nút Quay lại
         self._first_run()
         self.show_login()
         self.root.after(self.SYNC_INTERVAL_MS, self._sync_tick)
