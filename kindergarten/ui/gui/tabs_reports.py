@@ -381,7 +381,23 @@ class SchoolReportTab(BaseTab):
                                  height=6, checkable=True)
         self.m_fg_sources.pack(fill="both", expand=True)
         self.m_fg_sources.on_double_click(self.view_source)
+        self.m_fg_sources.on_select(self.refresh_source_detail)
+        self.m_fg_sources.on_check(self.refresh_source_detail)
+        self.m_lbl_source_detail = ttk.Label(self, style="Section.TLabel")
+        self.m_lbl_source_detail.pack(anchor="w", pady=(6, 0))
+        self.m_fg_source_detail = DataTable(self, [("Chỉ tiêu báo cáo nguồn", 240), ("Giá trị", 320)], height=3)
+        self.m_fg_source_detail.pack(fill="x")
         self.loaded = False
+
+    def refresh_source_detail(self) -> None:
+        item = self.system.reports.get_or_none(self.m_fg_sources.selected_id())
+        self.m_lbl_source_detail.configure(text=f"Đã chọn {len(self._selected_ids())} báo cáo nguồn" +
+                                           (f" · Chi tiết {item.id}" if item else ""))
+        if item is None:
+            self.m_fg_source_detail.set_rows([])
+            return
+        data = item.report(self.system).data
+        self.m_fg_source_detail.set_rows([["Số dòng dữ liệu", len(data.rows)], *data.summary])
 
     def _key(self) -> str:
         return "school_day" if "NGÀY" in self.m_cbo_kind.get() else "school_month"
@@ -423,7 +439,7 @@ class SchoolReportTab(BaseTab):
         self.loaded = True
 
     def _selected_ids(self) -> list[str]:
-        return [i for i in self.m_fg_sources.all_ids() if i in self.m_fg_sources._checked]
+        return self.m_fg_sources.checked_ids(fallback_to_selection=False)
 
     def view_source(self) -> None:
         item = self.selected(self.m_fg_sources, self.system.reports.get, "một báo cáo nguồn")

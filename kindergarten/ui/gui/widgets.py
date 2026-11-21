@@ -198,10 +198,10 @@ class DataTable(ttk.Frame):
             self._paint(iid)
         self._notify()
 
-    def checked_ids(self) -> list[str]:
+    def checked_ids(self, *, fallback_to_selection: bool = True) -> list[str]:
         """Các dòng đang được tích (theo thứ tự hiển thị); chưa tích dòng nào thì lấy các dòng đang chọn."""
         ticked = [i for i in self.tree.get_children() if i in self._checked]
-        return ticked or list(self.tree.selection())
+        return ticked or (list(self.tree.selection()) if fallback_to_selection else [])
 
     def on_check(self, callback: Callable[[], Any]) -> None:
         self._check_listeners.append(callback)
