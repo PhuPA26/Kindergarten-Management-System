@@ -9,7 +9,7 @@ from tkinter.scrolledtext import ScrolledText
 from typing import Any
 
 from ...auth.user import Permission
-from ...daily.records import MessageKind
+from ...daily.records import LeaveApplication, LeaveStatus, MessageKind
 from ...people.child import Child
 from ...utils import format_date, format_percent, format_table, format_vnd, month_label, weekday_name
 from .base_tab import BaseTab
@@ -70,15 +70,21 @@ class ParentTab(BaseTab):
         else:
             fields = [Field("content", "Nội dung lời nhắn", "textarea", width=50)]
             title = "Gửi lời nhắn cho cô"
+        if kind is MessageKind.LEAVE:
+            title = "Tạo đơn xin nghỉ"
+            success = (f"Đã gửi đơn xin nghỉ cho cô giáo lớp {self.class_name(child.class_id)} - đơn đang chờ cô "
+                       "duyệt. Xem kết quả ở mục 'Đơn xin nghỉ'.")
+        else:
+            success = f"Đã gửi {kind.value.lower()} cho cô giáo lớp {self.class_name(child.class_id)}."
         self.form(f"{title} - {child.full_name}", fields,
-                  lambda v: self.system.daily.parent_send(child.id, kind, **v),
-                  success=f"Đã gửi {kind.value.lower()} cho cô giáo lớp {self.class_name(child.class_id)}.")
+                  lambda v: self.system.daily.parent_send(child.id, kind, **v), success=success)
 
 
 # =============================================================================
 class ParentTodayTab(ParentTab):
     title = "Hôm nay của con"
     # Nhật ký, trao đổi, thực đơn, sức khỏe là phần xem chi tiết của "Hôm nay của con" -> chức năng con
+    # Đơn xin nghỉ là mục riêng trên menu trái (việc phụ huynh hay làm, cần thấy ngay) - không phải chức năng con
     sub_tabs = ("ParentDiaryTab", "ParentMessagesTab", "ParentMenuTab", "ParentHealthTab")
 
     def build(self) -> None:
@@ -91,7 +97,7 @@ class ParentTodayTab(ParentTab):
         actions = self.bar(pady=(8, 0))
         self.button(actions, "Gửi lời nhắn cho cô", lambda: self.send_message(MessageKind.NOTE), style="Accent.TButton")
         self.button(actions, "Dặn uống thuốc", lambda: self.send_message(MessageKind.MEDICINE))
-        self.button(actions, "Xin nghỉ học", lambda: self.send_message(MessageKind.LEAVE))
+        self.button(actions, "Tạo đơn xin nghỉ", lambda: self.send_message(MessageKind.LEAVE))
         self.button(actions, "Phản hồi nhật ký hôm nay", self.reply_today)
 
     def refresh(self) -> None:
@@ -205,7 +211,7 @@ class ParentMessagesTab(ParentTab):
         actions = self.bar(pady=(8, 0))
         self.button(actions, "Gửi lời nhắn", lambda: self.send_message(MessageKind.NOTE), style="Accent.TButton")
         self.button(actions, "Dặn uống thuốc", lambda: self.send_message(MessageKind.MEDICINE))
-        self.button(actions, "Xin nghỉ học", lambda: self.send_message(MessageKind.LEAVE))
+        self.button(actions, "Tạo đơn xin nghỉ", lambda: self.send_message(MessageKind.LEAVE))
 
     def refresh(self) -> None:
         child = self.child()
@@ -213,6 +219,73 @@ class ParentMessagesTab(ParentTab):
         self.m_fg_list.set_rows([[m.created_at.replace("T", " ")[5:], m.kind.value, m.detail_text(), m.sender,
                               m.status.value, m.reply] for m in items], [m.id for m in items],
                             ["ok" if m.status.value == "Đã thực hiện" else None for m in items])
+
+
+# =============================================================================
+class ParentLeaveTab(ParentTab):
+    """Đơn xin nghỉ: phụ huynh tạo đơn cho con -> giáo viên chủ nhiệm duyệt (nghỉ có phép) hoặc từ chối.
+    Đơn cô ghi giúp khi phụ huynh gọi điện báo nghỉ cũng hiện ở đây."""
+    title = "Đơn xin nghỉ"
+
+    STATUS_TAGS = {LeaveStatus.APPROVED: "ok", LeaveStatus.DECLINED: "warn", LeaveStatus.CANCELLED: "muted"}
+
+    def build(self) -> None:
+        self.child_bar()
+        ttk.Label(self, style="Muted.TLabel", text="Đơn gửi xong ở trạng thái 'Chờ cô duyệt'. Cô duyệt thì các ngày "
+                  "nghỉ được tính là nghỉ có phép; đơn chưa duyệt có thể rút lại.").pack(anchor="w", pady=(0, 6))
+        self.m_fg_list = DataTable(self, [("Mã", 60, "center"), ("Gửi lúc", 90, "center"),
+                                          ("Nghỉ ngày", 165, "center"), ("Ngày học", 80, "center"),
+                                          ("Lý do", 180), ("Người tạo đơn", 160), ("Trạng thái", 100, "center"),
+                                          ("Cô phản hồi", 190)])
+        self.m_fg_list.pack(fill="both", expand=True)
+        self.m_fg_list.on_double_click(self.view)
+        actions = self.bar(pady=(8, 0))
+        self.button(actions, "Tạo đơn xin nghỉ", lambda: self.send_message(MessageKind.LEAVE),
+                    style="Accent.TButton")
+        self.button(actions, "Xem chi tiết", self.view)
+        self.button(actions, "Rút đơn chưa duyệt", self.withdraw)
+        self.m_lbl_summary = ttk.Label(actions, style="Muted.TLabel")
+        self.m_lbl_summary.pack(side="right")
+        self._items: dict[str, LeaveApplication] = {}
+
+    def refresh(self) -> None:
+        child = self.child()
+        items = self.system.daily.leave_applications(child.id) if child else []
+        self._items = {a.id: a for a in items}
+        self.m_fg_list.set_rows([[a.id, a.created_text, a.period_text, a.school_days, a.reason, a.created_by,
+                                  a.status.value, a.teacher_note] for a in items],
+                                [a.id for a in items], [self.STATUS_TAGS.get(a.status) for a in items])
+        pending = sum(1 for a in items if a.status is LeaveStatus.PENDING)
+        self.m_lbl_summary.configure(text=f"{len(items)} đơn" + (f", {pending} đơn chờ cô duyệt" if pending else ""))
+
+    def _selected(self) -> LeaveApplication | None:
+        return self.selected(self.m_fg_list, self._items.get, "một đơn")
+
+    def view(self) -> None:
+        a = self._selected()
+        if a is None:
+            return
+        child = self.system.children.get(a.child_id)
+        lines = [f"Đơn xin nghỉ {a.id} - {child.full_name} (lớp {self.class_name(a.class_id)})", "",
+                 f"Nghỉ ngày: {a.period_text} ({a.school_days} ngày học)", f"Lý do: {a.reason}",
+                 f"Người tạo đơn: {a.created_by}", f"Hình thức: {a.source}", f"Gửi lúc: {a.created_text}",
+                 f"Trạng thái: {a.status.value}"]
+        if a.teacher_note:
+            lines.append(f"Cô phản hồi: {a.teacher_note}")
+        if a.status is LeaveStatus.APPROVED:
+            lines.append("Các ngày trong đơn được tính là nghỉ có phép.")
+        self.show_text(f"Đơn xin nghỉ {a.id}", "\n".join(lines))
+
+    def withdraw(self) -> None:
+        a = self._selected()
+        if a is None:
+            return
+        if not a.can_withdraw:
+            messagebox.showinfo("Không rút được", f"Đơn {a.id} đang ở trạng thái '{a.status.value}' - chỉ rút được "
+                                "đơn chờ cô duyệt. Cần thay đổi thì hãy nhắn cô.", parent=self)
+            return
+        if self.confirm(f"Rút đơn xin nghỉ {a.id} ({a.period_text})?"):
+            self.guard(self.system.daily.parent_withdraw_leave, a.id, success=f"Đã rút đơn {a.id}.")
 
 
 # =============================================================================

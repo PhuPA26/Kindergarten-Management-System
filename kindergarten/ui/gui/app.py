@@ -17,8 +17,8 @@ from ...auth.user import Role
 from .tabs_daily import CalendarTab, CheckInOutTab, DailyLogTab, OperationsTab, ParentContactTab, ServicesTab
 from .tabs_office import FinanceTab, MenuTab, SystemTab
 from .tabs_reports import ReportInboxTab, ReportSubmitTab, SchoolReportTab
-from .tabs_parent import (ParentDiaryTab, ParentFeesTab, ParentHealthTab, ParentMenuTab, ParentMessagesTab,
-                          ParentTodayTab)
+from .tabs_parent import (ParentDiaryTab, ParentFeesTab, ParentHealthTab, ParentLeaveTab, ParentMenuTab,
+                          ParentMessagesTab, ParentTodayTab)
 from .tabs_people import ChildrenTab, DashboardTab, HealthTab, ParentsTab
 from .tabs_school import AttendanceTab, ClassesTab, EmployeesTab, TimetableTab
 from .tabs_teaching import LessonTab
@@ -29,7 +29,7 @@ from .widgets import COLORS, FONTS, Field, FormDialog, configure_fonts, detect_s
 # Biểu tượng của từng màn hình trên menu trái (ký tự Unicode - có sẵn trong phông Segoe UI Symbol)
 TAB_ICONS = {
     "ParentTodayTab": "☀", "ParentDiaryTab": "✎", "ParentMessagesTab": "✉", "ParentMenuTab": "♨",
-    "ParentFeesTab": "₫", "ParentHealthTab": "♥",
+    "ParentFeesTab": "₫", "ParentHealthTab": "♥", "ParentLeaveTab": "✍",
     "OperationsTab": "⚡", "LessonTab": "♪", "CheckInOutTab": "⇄", "AttendanceTab": "✔", "DailyLogTab": "☾",
     "ParentContactTab": "✆",
     "ChildrenTab": "☺", "ParentsTab": "☻", "HealthTab": "✚", "ClassesTab": "⌂", "TimetableTab": "◷",
@@ -48,8 +48,8 @@ NAVIGATION: list[tuple[str, list[type[BaseTab]]]] = [
     ("F1.2 Quản lý danh mục", [ChildrenTab, ParentsTab, EmployeesTab, ClassesTab, ServicesTab, CalendarTab]),
     ("F1.3 Nghiệp vụ chăm sóc - giáo dục", [OperationsTab, LessonTab, CheckInOutTab, AttendanceTab, DailyLogTab,
                                            ParentContactTab, HealthTab, TimetableTab, MenuTab,
-                                           ParentTodayTab, ParentDiaryTab, ParentMessagesTab, ParentMenuTab,
-                                           ParentHealthTab]),
+                                           ParentTodayTab, ParentDiaryTab, ParentMessagesTab, ParentLeaveTab,
+                                           ParentMenuTab, ParentHealthTab]),
     ("F1.4 Nghiệp vụ tài chính", [FinanceTab, ParentFeesTab]),
     ("F1.5 Báo cáo thống kê", [DashboardTab, ReportSubmitTab, ReportInboxTab, SchoolReportTab]),
 ]
@@ -65,6 +65,7 @@ _FORM_SLUGS = {
     "DailyLogTab": "nv_an_ngu_sinh_hoat", "ParentContactTab": "nv_trao_doi_phu_huynh", "HealthTab": "nv_suc_khoe",
     "TimetableTab": "nv_thoi_khoa_bieu", "MenuTab": "nv_thuc_don", "ParentTodayTab": "nv_hom_nay_cua_con",
     "ParentDiaryTab": "nv_nhat_ky_cua_con", "ParentMessagesTab": "nv_trao_doi_voi_co",
+    "ParentLeaveTab": "nv_don_xin_nghi_cua_con",
     "ParentMenuTab": "nv_thuc_don_tuan", "ParentHealthTab": "nv_suc_khoe_cua_con",
     "FinanceTab": "nv_hoc_phi", "ParentFeesTab": "nv_hoc_phi_cua_con",
     "DashboardTab": "bc_tong_quan", "ReportSubmitTab": "bc_lap_gui_bao_cao", "ReportInboxTab": "bc_bao_cao_nhan_duoc",
@@ -77,7 +78,8 @@ FORM_CODES: dict[str, str] = {cls.__name__: f"frm{i:03d}_{_FORM_SLUGS[cls.__name
 SIDEBAR_GROUPS: list[tuple[str, list[str]]] = [
     ("Trang chính", ["DashboardTab", "OperationsTab", "LessonTab", "ParentTodayTab"]),
     ("Công việc hằng ngày", ["CheckInOutTab", "AttendanceTab", "DailyLogTab", "ParentContactTab", "HealthTab",
-                             "MenuTab", "ParentDiaryTab", "ParentMessagesTab", "ParentMenuTab", "ParentHealthTab"]),
+                             "MenuTab", "ParentDiaryTab", "ParentMessagesTab", "ParentLeaveTab", "ParentMenuTab",
+                             "ParentHealthTab"]),
     ("Hồ sơ & lớp học", ["ChildrenTab", "ParentsTab", "ClassesTab", "TimetableTab", "EmployeesTab"]),
     ("Học phí", ["FinanceTab", "ServicesTab", "ParentFeesTab"]),
     ("Báo cáo", ["ReportSubmitTab", "ReportInboxTab", "SchoolReportTab"]),

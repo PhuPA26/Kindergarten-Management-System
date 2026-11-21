@@ -33,6 +33,7 @@ Theo hướng dẫn: **Project Setup → (Develop, Test & Feedback) lặp lại 
 | `test_gui_smoke.py` | Kiểm thử khói giao diện Tkinter: với MỖI tài khoản mẫu (mỗi phân hệ), đăng nhập, mở lần lượt mọi form của phân hệ, | 13 |
 | `test_health.py` | Kiểm thử HealthRecord (T12), Vaccination, Allergy, HealthManager (T13). | 4 |
 | `test_hr.py` | Kiểm thử Teacher/Staff tính lương đa hình (T14) và EmployeeManager (T15). | 4 |
+| `test_leave_requests.py` | Đơn xin nghỉ: phụ huynh tạo đơn -> giáo viên chủ nhiệm duyệt / từ chối; phụ huynh rút đơn chưa duyệt; | 7 |
 | `test_nutrition.py` | Kiểm thử Meal/Menu (T25) và MenuManager - cảnh báo dị ứng (T26). | 3 |
 | `test_people.py` | Kiểm thử Parent (T09), Child (T10), ChildManager/ParentManager (T11). | 7 |
 | `test_portals_daily.py` | Kiểm thử các yêu cầu mới: 5 phân hệ theo vai trò, tự đăng ký tài khoản, vận hành hằng ngày 6 bước, | 9 |
@@ -41,9 +42,9 @@ Theo hướng dẫn: **Project Setup → (Develop, Test & Feedback) lặp lại 
 | `test_sqlite_store.py` | Kiểm thử lưu trữ SQLite - thiết kế CSDL v3 (43 bảng đạt BCNF, file data/ql_mam_non.db). | 12 |
 | `test_subsystems_reports.py` | Kiểm thử: phân hệ chỉ giữ chức năng đúng nhiệm vụ; đón trẻ đồng bộ điểm danh; quy trình gửi - duyệt báo cáo. | 5 |
 | `test_teaching.py` | GV chủ nhiệm và GV bộ môn có công việc khác nhau; sổ tiết dạy bộ môn (nghiệp vụ riêng của GV bộ môn). | 5 |
-| **Tổng** | (chưa tính các lần chạy lặp theo tham số, VD test giao diện chạy cho 12 tài khoản) | **128** |
+| **Tổng** | (chưa tính các lần chạy lặp theo tham số, VD test giao diện chạy cho 12 tài khoản) | **135** |
 
-**Kết quả lần chạy 21/11/2026 01:13:** `147 passed, 13 skipped in 39.04s`
+**Kết quả lần chạy 21/11/2026 23:25:** `154 passed, 13 skipped in 21.52s`
 <!-- TESTS:END -->
 
 ## 4. Kịch bản kiểm thử tay

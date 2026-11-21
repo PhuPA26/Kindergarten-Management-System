@@ -42,7 +42,7 @@ def test_each_subsystem_only_has_its_own_screens(seeded):
     assert "Học phí" not in teacher and "Tổng quan" not in teacher and "Lớp học" not in teacher
     assert {"Vận hành hôm nay", "Đón - trả trẻ", "Điểm danh", "Ăn ngủ - sinh hoạt", "Trao đổi phụ huynh"} <= set(teacher)
     parent = screens_of(seeded, "ph.mai", "phuhuynh123")
-    assert all(title in ("Hôm nay của con", "Nhật ký ăn ngủ", "Trao đổi với cô", "Thực đơn tuần",
+    assert all(title in ("Hôm nay của con", "Nhật ký ăn ngủ", "Trao đổi với cô", "Đơn xin nghỉ", "Thực đơn tuần",
                          "Học phí & dịch vụ", "Sức khỏe & chuyên cần") for title in parent)
     admin = screens_of(seeded, "admin", "admin123")
     assert {"Báo cáo nhận được", "Lập báo cáo toàn trường"} <= set(admin) and "Lập & gửi báo cáo" not in admin

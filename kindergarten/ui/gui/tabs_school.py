@@ -498,10 +498,13 @@ class AttendanceTab(BaseTab):
         self.button(marks, "Nghỉ không phép", lambda: self.set_status(AttendanceStatus.UNEXCUSED))
         self.m_btn_save = self.button(marks, "LƯU ĐIỂM DANH", self.save_attendance, style="Accent.TButton",
                                        side="right")
+        leaves = self.bar(pady=(6, 0))
+        ttk.Label(leaves, text="Đơn xin nghỉ:").pack(side="left", padx=(0, 6))
+        self.m_btn_review_leave = self.button(leaves, "Duyệt đơn PH gửi", self.review_leaves, style="Accent.TButton")
+        self.button(leaves, "Ghi đơn PH báo qua điện thoại", self.leave_request)
+        self.button(leaves, "Danh sách đơn", self.list_leaves)
+        self.button(leaves, "Hủy đơn nhập nhầm", self.cancel_leave)
         more = self.bar(pady=(6, 0))
-        self.button(more, "Ghi đơn xin nghỉ", self.leave_request)
-        self.button(more, "Danh sách đơn xin nghỉ", self.list_leaves)
-        self.button(more, "Hủy đơn nhập nhầm", self.cancel_leave)
         self.button(more, "Thống kê chuyên cần tháng", self.monthly_stats)
         self.button(more, "Sổ điểm danh tháng", self.month_grid)
         self.button(more, "Xác nhận người đón trẻ", self.verify_pickup, style="Accent.TButton")
@@ -579,6 +582,8 @@ class AttendanceTab(BaseTab):
         self.m_cbo_class["values"] = options
         if self.m_cbo_class.get() not in options:
             self.m_cbo_class.set(options[0] if options else "")
+        pending = len(self.system.daily.pending_leaves())
+        self.m_btn_review_leave.configure(text=f"Duyệt đơn PH gửi ({pending})" if pending else "Duyệt đơn PH gửi")
         if not self.dirty:
             self.load_list(quiet=True)
 
@@ -678,14 +683,47 @@ class AttendanceTab(BaseTab):
         return True
 
     # ------------------------------------------------------------------ đơn xin nghỉ
+    def review_leaves(self) -> None:
+        """Duyệt / từ chối đơn xin nghỉ phụ huynh tự tạo trên ứng dụng."""
+        pending = self.system.daily.pending_leaves()
+        if not pending:
+            messagebox.showinfo("Không có đơn", "Không có đơn xin nghỉ nào của phụ huynh đang chờ duyệt.", parent=self)
+            return
+        names = {c.id: c.full_name for c in self.system.children_for(self.user)}
+        options = [(m.id, f"{m.id} - {names.get(m.child_id, m.child_id)} ({self.class_name(m.class_id)}): "
+                          f"{m.period_text} - {m.content} - {m.sender}") for m in pending]
+        fields = [Field("message_id", "Đơn chờ duyệt", "choice", options, options[0][0], width=70),
+                  Field("approve", "Quyết định", "choice", [(True, "Duyệt"), (False, "Từ chối")], True),
+                  Field("note", "Ghi chú cho phụ huynh (bắt buộc khi từ chối)", required=False, width=70)]
+        self.form("Duyệt đơn xin nghỉ của phụ huynh", fields,
+                  lambda v: self.system.daily.review_leave(v["message_id"], v["approve"], v["note"] or ""),
+                  success=lambda m: (f"Đã duyệt đơn {m.id}: {m.period_text} tính là nghỉ có phép."
+                                     if m.leave_request_id else f"Đã từ chối đơn {m.id}."))
+        if not self.dirty:
+            self.load_list(quiet=True)
+
     def leave_request(self) -> None:
+        """Phụ huynh gọi điện / nhắn Zalo báo nghỉ -> giáo viên ghi đơn giúp, có hiệu lực ngay (không cần duyệt)."""
         fields = [Field("child_id", "Trẻ", "choice", self.child_options(), self.m_fg_list.selected_id()),
                   Field("from_date", "Nghỉ từ ngày", "date", default=date.today()),
                   Field("to_date", "Đến ngày", "date", default=date.today()),
-                  Field("reason", "Lý do"), Field("submitted_by", "Người gửi đơn", required=False)]
+                  Field("reason", "Lý do"),
+                  Field("submitted_by", "Người báo nghỉ (VD: Mẹ - Lê Thị Tâm)", required=False)]
         attendance = self.system.attendance
-        self.form("Ghi đơn xin nghỉ", fields, lambda v: attendance.record_leave_request(**v),
+
+        def submit(values: dict[str, Any]):
+            child = self.system.children.get(values["child_id"])
+            sender = values.get("submitted_by") or ""
+            if not sender:
+                parents = self.system.parents.parents_of(child.id)
+                sender = f"{parents[0].relationship} {parents[0].full_name}" if parents else "Phụ huynh"
+            values["submitted_by"] = f"{sender} (qua điện thoại)"
+            return attendance.record_leave_request(**values)
+
+        self.form("Ghi đơn xin nghỉ (phụ huynh báo qua điện thoại)", fields, submit,
                   success=lambda r: f"Đã ghi đơn {r.id} ({r.period_text}, {attendance.leave_school_days(r)} ngày học).")
+        if not self.dirty:
+            self.load_list(quiet=True)
 
     def _visible_leaves(self) -> list:
         allowed = {c.id for c in self.system.children_for(self.user)}
@@ -693,13 +731,14 @@ class AttendanceTab(BaseTab):
 
     def list_leaves(self) -> None:
         rows = []
-        for r in self._visible_leaves():
-            child = self.system.children.get_or_none(r.child_id)
-            rows.append([r.id, child.full_name if child else r.child_id,
-                         self.class_name(child.class_id) if child else "-", r.period_text,
-                         self.system.attendance.leave_school_days(r), r.reason, r.submitted_by or "-"])
+        for a in self.system.daily.leave_applications_for_staff():
+            child = self.system.children.get_or_none(a.child_id)
+            rows.append([a.id, child.full_name if child else a.child_id, self.class_name(a.class_id), a.period_text,
+                         a.school_days, a.reason, a.created_by,
+                         "PH gửi" if a.source == a.SOURCE_PARENT else "Cô ghi giúp", a.status.value])
         self.show_text("Đơn xin nghỉ", format_table(["Mã đơn", "Trẻ", "Lớp", "Thời gian", "Ngày học", "Lý do",
-                                                     "Người gửi"], rows, title="ĐƠN XIN NGHỈ (mới nhất trước)"))
+                                                     "Người gửi", "Hình thức", "Trạng thái"], rows,
+                                                    title="ĐƠN XIN NGHỈ (đơn chờ duyệt trước, sau đó mới nhất)"))
 
     def cancel_leave(self) -> None:
         """L26: hủy đơn nhập nhầm; các ngày đơn đã chuyển 'có phép' được trả về 'không phép'."""

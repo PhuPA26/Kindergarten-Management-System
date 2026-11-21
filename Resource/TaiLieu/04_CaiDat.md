@@ -85,14 +85,15 @@ Nguyên tắc chung của hướng dẫn: **đủ dài - dễ hiểu - tránh nh
 | `frm017_nv_hom_nay_cua_con` | Hôm nay của con | F1.3 Nghiệp vụ chăm sóc - giáo dục | nv - nghiệp vụ |
 | `frm018_nv_nhat_ky_cua_con` | Nhật ký ăn ngủ | F1.3 Nghiệp vụ chăm sóc - giáo dục | nv - nghiệp vụ |
 | `frm019_nv_trao_doi_voi_co` | Trao đổi với cô | F1.3 Nghiệp vụ chăm sóc - giáo dục | nv - nghiệp vụ |
-| `frm020_nv_thuc_don_tuan` | Thực đơn tuần | F1.3 Nghiệp vụ chăm sóc - giáo dục | nv - nghiệp vụ |
-| `frm021_nv_suc_khoe_cua_con` | Sức khỏe & chuyên cần | F1.3 Nghiệp vụ chăm sóc - giáo dục | nv - nghiệp vụ |
-| `frm022_nv_hoc_phi` | Học phí | F1.4 Nghiệp vụ tài chính | nv - nghiệp vụ |
-| `frm023_nv_hoc_phi_cua_con` | Học phí & dịch vụ | F1.4 Nghiệp vụ tài chính | nv - nghiệp vụ |
-| `frm024_bc_tong_quan` | Tổng quan | F1.5 Báo cáo thống kê | bc - báo cáo |
-| `frm025_bc_lap_gui_bao_cao` | Lập & gửi báo cáo | F1.5 Báo cáo thống kê | bc - báo cáo |
-| `frm026_bc_bao_cao_nhan_duoc` | Báo cáo nhận được | F1.5 Báo cáo thống kê | bc - báo cáo |
-| `frm027_bc_bao_cao_toan_truong` | Lập báo cáo toàn trường | F1.5 Báo cáo thống kê | bc - báo cáo |
+| `frm020_nv_don_xin_nghi_cua_con` | Đơn xin nghỉ | F1.3 Nghiệp vụ chăm sóc - giáo dục | nv - nghiệp vụ |
+| `frm021_nv_thuc_don_tuan` | Thực đơn tuần | F1.3 Nghiệp vụ chăm sóc - giáo dục | nv - nghiệp vụ |
+| `frm022_nv_suc_khoe_cua_con` | Sức khỏe & chuyên cần | F1.3 Nghiệp vụ chăm sóc - giáo dục | nv - nghiệp vụ |
+| `frm023_nv_hoc_phi` | Học phí | F1.4 Nghiệp vụ tài chính | nv - nghiệp vụ |
+| `frm024_nv_hoc_phi_cua_con` | Học phí & dịch vụ | F1.4 Nghiệp vụ tài chính | nv - nghiệp vụ |
+| `frm025_bc_tong_quan` | Tổng quan | F1.5 Báo cáo thống kê | bc - báo cáo |
+| `frm026_bc_lap_gui_bao_cao` | Lập & gửi báo cáo | F1.5 Báo cáo thống kê | bc - báo cáo |
+| `frm027_bc_bao_cao_nhan_duoc` | Báo cáo nhận được | F1.5 Báo cáo thống kê | bc - báo cáo |
+| `frm028_bc_bao_cao_toan_truong` | Lập báo cáo toàn trường | F1.5 Báo cáo thống kê | bc - báo cáo |
 <!-- FORMS:END -->
 
 ## 4. Coding Convention

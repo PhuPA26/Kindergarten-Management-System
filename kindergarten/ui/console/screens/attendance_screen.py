@@ -22,7 +22,8 @@ class AttendanceScreen(Screen):
         return (self.new_menu()
                 .add("Điểm danh lớp theo ngày", self.take_attendance, P)
                 .add("Sửa điểm danh của một trẻ", self.edit_one, P)
-                .add("Ghi đơn xin nghỉ", self.leave_request, P)
+                .add("Duyệt đơn xin nghỉ phụ huynh gửi", self.review_leaves, P)
+                .add("Ghi đơn xin nghỉ (phụ huynh báo qua điện thoại)", self.leave_request, P)
                 .add("Danh sách đơn xin nghỉ", self.list_leaves, P)
                 .add("Hủy đơn xin nghỉ nhập nhầm", self.cancel_leave, P)
                 .add("Xem tình hình điểm danh theo ngày", self.view_day, P)
@@ -80,7 +81,23 @@ class AttendanceScreen(Screen):
         self.system.attendance.mark(child.id, day, status, note)
         self.io.success(f"Đã ghi {child.full_name}: {status.value} ngày {format_date(day)}.")
 
+    def review_leaves(self) -> None:
+        """Duyệt / từ chối đơn xin nghỉ phụ huynh tự tạo trên ứng dụng."""
+        io, daily = self.io, self.system.daily
+        message = self._require(io.choose(
+            daily.pending_leaves(),
+            lambda m: f"{m.id} - {self.system.children.get(m.child_id).full_name}: {m.period_text} - {m.content} "
+                      f"({m.sender})",
+            "Chọn đơn cần duyệt", "Không có đơn xin nghỉ nào của phụ huynh đang chờ duyệt."))
+        approve = io.ask_choice("Quyết định", [(True, "Duyệt - tính nghỉ có phép"), (False, "Từ chối")], True)
+        note = io.ask_text("Ghi chú cho phụ huynh" + ("" if approve else " (lý do từ chối)"),
+                           required=not approve) or ""
+        message = daily.review_leave(message.id, approve, note)
+        io.success(f"Đã duyệt đơn {message.id}: {message.period_text} tính là nghỉ có phép." if approve
+                   else f"Đã từ chối đơn {message.id}.")
+
     def leave_request(self) -> None:
+        """Phụ huynh gọi điện báo nghỉ -> giáo viên ghi đơn giúp, có hiệu lực ngay (không cần duyệt)."""
         io = self.io
         child = self.select_child()
         start = io.ask_date("Nghỉ từ ngày", date.today())
@@ -88,8 +105,9 @@ class AttendanceScreen(Screen):
         reason = io.ask_text("Lý do nghỉ")
         parents = self.system.parents.parents_of(child.id)
         default_sender = f"{parents[0].relationship} {parents[0].full_name}" if parents else None
-        sender = io.ask_text("Người gửi đơn", default_sender, required=False) or ""
-        request = self.system.attendance.record_leave_request(child.id, start, end, reason, sender)
+        sender = io.ask_text("Người báo nghỉ", default_sender, required=False) or "Phụ huynh"
+        request = self.system.attendance.record_leave_request(child.id, start, end, reason,
+                                                              f"{sender} (qua điện thoại)")
         io.success(f"Đã ghi đơn {request.id} cho {child.full_name}: {request.period_text} "
                    f"({self.system.attendance.leave_school_days(request)} ngày học). "
                    "Các ngày này sẽ tính là nghỉ có phép.")
@@ -100,13 +118,12 @@ class AttendanceScreen(Screen):
 
     def list_leaves(self) -> None:
         rows = []
-        for request in self._visible_leaves():
-            child = self.system.children.get(request.child_id)
-            rows.append([request.id, child.full_name, self.class_name(child.class_id), request.period_text,
-                         self.system.attendance.leave_school_days(request), request.reason,
-                         request.submitted_by or "-"])
-        self.io.table(["Mã đơn", "Trẻ", "Lớp", "Thời gian", "Ngày học", "Lý do", "Người gửi"], rows[:50],
-                      title="ĐƠN XIN NGHỈ (mới nhất trước, tối đa 50 đơn)")
+        for a in self.system.daily.leave_applications_for_staff():
+            child = self.system.children.get(a.child_id)
+            rows.append([a.id, child.full_name, self.class_name(a.class_id), a.period_text, a.school_days, a.reason,
+                         a.created_by, "PH gửi" if a.source == a.SOURCE_PARENT else "Cô ghi giúp", a.status.value])
+        self.io.table(["Mã đơn", "Trẻ", "Lớp", "Thời gian", "Ngày học", "Lý do", "Người gửi", "Hình thức",
+                       "Trạng thái"], rows[:50], title="ĐƠN XIN NGHỈ (chờ duyệt trước, sau đó mới nhất; tối đa 50)")
 
     def cancel_leave(self) -> None:
         """L26: hủy đơn nhập nhầm; các ngày đơn đã chuyển 'có phép' được trả về 'không phép'."""

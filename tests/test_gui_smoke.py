@@ -127,6 +127,7 @@ def test_parent_views_are_sub_functions_of_today(gui_app):
     for child in ("ParentDiaryTab", "ParentMessagesTab", "ParentMenuTab", "ParentHealthTab"):
         assert main.parent_of[names[child]] == today and names[child] not in main.sidebar.items
     assert names["ParentFeesTab"] in main.sidebar.items
+    assert names["ParentLeaveTab"] in main.sidebar.items   # đơn xin nghỉ: mục riêng, phụ huynh thấy ngay
     assert main.current is main.tabs[today]
     buttons = [w for w in main.current.m_fra_sub.winfo_children() if isinstance(w, tk.ttk.Button)]
     assert [b.cget("text") for b in buttons] == ["Nhật ký ăn ngủ", "Trao đổi với cô", "Thực đơn tuần",

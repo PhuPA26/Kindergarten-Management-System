@@ -13,13 +13,13 @@ from dataclasses import dataclass
 from datetime import date, datetime, time
 from typing import TYPE_CHECKING, Any, Callable
 
-from ..attendance.records import AttendanceStatus
+from ..attendance.records import AttendanceStatus, LeaveRequest
 from ..auth.user import Permission
 from ..core.base_manager import BaseManager
 from ..exceptions import KindergartenError, PermissionDeniedError, ValidationError
 from ..people.child import Child
 from ..utils import format_date, normalize_spaces, parse_date, validate_not_future
-from .records import MEALS, DailyLog, Message, MessageKind, MessageStatus
+from .records import MEALS, DailyLog, LeaveApplication, LeaveStatus, Message, MessageKind, MessageStatus
 
 if TYPE_CHECKING:
     from ..system import KindergartenSystem
@@ -252,6 +252,8 @@ class DailyManager:
         d = parse_date(for_date, "Ngày") if for_date else date.today()
         if kind in (MessageKind.MEDICINE, MessageKind.LEAVE) and d < date.today():
             raise ValidationError("Ngày dặn thuốc / xin nghỉ không được ở quá khứ.")
+        if kind is MessageKind.LEAVE:
+            self._check_leave_dates(child, d, parse_date(to_date, "Đến ngày") if to_date else d)
         message = Message(kind, content, self._who(), "Phụ huynh", child.id, child.class_id, d, medicine, dosage,
                           time_text, to_date if kind is MessageKind.LEAVE else None)
         self.messages.add(message)
@@ -327,6 +329,99 @@ class DailyManager:
         message.replied_at = datetime.now().isoformat(timespec="minutes")
         message.status = MessageStatus.DECLINED
         return message
+
+    # ------------------------------------------------------------------ đơn xin nghỉ
+    def _check_leave_dates(self, child: Child, start: date, end: date) -> None:
+        """Đơn phụ huynh gửi được kiểm tra ngay lúc gửi (không đợi tới lúc cô duyệt mới báo lỗi)."""
+        if end < start:
+            raise ValidationError("'Đến ngày' phải sau hoặc bằng 'Nghỉ từ ngày'.")
+        if (end - start).days + 1 > LeaveRequest.MAX_DAYS:
+            raise ValidationError(f"Một đơn xin nghỉ không quá {LeaveRequest.MAX_DAYS} ngày.")
+        for request in self.system.attendance.leave_requests.find(child_id=child.id):
+            if request.from_date <= end and start <= request.to_date:
+                raise ValidationError(f"{child.full_name} đã có đơn nghỉ {request.id} ({request.period_text}) "
+                                      "trùng khoảng thời gian này.")
+        for message in self.messages.find(child_id=child.id):
+            if message.kind is MessageKind.LEAVE and message.needs_action \
+                    and message.for_date <= end and start <= (message.to_date or message.for_date):
+                raise ValidationError(f"Đơn {message.id} ({message.period_text}) đang chờ cô duyệt, trùng khoảng "
+                                      "thời gian này. Hãy rút đơn đó trước nếu muốn sửa.")
+
+    def _school_days(self, start: date, end: date) -> int:
+        calendar = self.system.calendar
+        return sum(1 for o in range(start.toordinal(), end.toordinal() + 1)
+                   if calendar.is_school_day(date.fromordinal(o)))
+
+    def _leave_applications(self, child_ids: set[str]) -> list[LeaveApplication]:
+        attendance = self.system.attendance
+        result: list[LeaveApplication] = []
+        linked: set[str] = set()
+        for m in self.messages:
+            if m.kind is not MessageKind.LEAVE or m.child_id not in child_ids:
+                continue
+            request = attendance.leave_requests.get_or_none(m.leave_request_id) if m.leave_request_id else None
+            linked.add(m.leave_request_id)
+            if m.status is MessageStatus.DECLINED:
+                status = LeaveStatus.DECLINED
+            elif m.status is MessageStatus.DONE:
+                status = LeaveStatus.APPROVED if request is not None else LeaveStatus.CANCELLED
+            else:
+                status = LeaveStatus.PENDING
+            end = m.to_date or m.for_date
+            result.append(LeaveApplication(
+                m.id, m.child_id, m.class_id, m.for_date, end, m.content, m.sender, LeaveApplication.SOURCE_PARENT,
+                status, m.reply, m.created_at, self._school_days(m.for_date, end), m.leave_request_id))
+        for r in attendance.leave_requests:
+            if r.child_id not in child_ids or r.id in linked:
+                continue
+            child = self.system.children.get_or_none(r.child_id)
+            result.append(LeaveApplication(
+                r.id, r.child_id, child.class_id if child else None, r.from_date, r.to_date, r.reason,
+                r.submitted_by or "-", LeaveApplication.SOURCE_TEACHER, LeaveStatus.APPROVED, "", r.created_at,
+                self._school_days(r.from_date, r.to_date), r.id))
+        # đơn chờ duyệt lên đầu, sau đó ngày nghỉ gần nhất trước
+        return sorted(result, key=lambda a: (a.status is LeaveStatus.PENDING, a.from_date, a.created_at),
+                      reverse=True)
+
+    def leave_applications(self, child_id: str) -> list[LeaveApplication]:
+        """Phụ huynh: mọi đơn xin nghỉ của con - đơn tự gửi (chờ duyệt / đã duyệt / từ chối) và đơn cô ghi giúp."""
+        self._require(Permission.PARENT_PORTAL)
+        return self._leave_applications({self._child_for_parent(child_id).id})
+
+    def leave_applications_for_staff(self) -> list[LeaveApplication]:
+        """Giáo viên / BGH: đơn xin nghỉ của các trẻ trong phạm vi được xem."""
+        self._require(Permission.TAKE_ATTENDANCE)
+        user = self._user
+        children = self.system.children.all() if user is None else self.system.children_for(user)
+        return self._leave_applications({c.id for c in children})
+
+    def pending_leaves(self) -> list[Message]:
+        """Đơn phụ huynh gửi đang chờ giáo viên duyệt (trong phạm vi lớp được xem), cũ nhất trước."""
+        return sorted((self.messages.get(a.id) for a in self.leave_applications_for_staff()
+                       if a.status is LeaveStatus.PENDING), key=lambda m: m.created_at)
+
+    def parent_withdraw_leave(self, message_id: str) -> Message:
+        """Phụ huynh rút đơn xin nghỉ đã gửi khi cô chưa duyệt (VD: gửi nhầm ngày, con khỏi ốm đi học lại)."""
+        self._require(Permission.PARENT_PORTAL)
+        message = self.messages.get(message_id)
+        if message.kind is not MessageKind.LEAVE or not message.child_id:
+            raise ValidationError(f"'{message.id}' không phải đơn xin nghỉ.")
+        self._child_for_parent(message.child_id)
+        if not message.needs_action:
+            raise KindergartenError("Cô đã xử lý đơn này nên không rút được. Hãy nhắn cô nếu cần thay đổi.")
+        self.messages.remove(message.id)
+        self.system.audit("Phụ huynh rút đơn xin nghỉ", message.child_id, {"message": message.id})
+        return message
+
+    def review_leave(self, message_id: str, approve: bool, note: str = "") -> Message:
+        """Giáo viên duyệt đơn phụ huynh gửi (thành đơn nghỉ có phép) hoặc từ chối (bắt buộc ghi lý do)."""
+        self._require(Permission.TAKE_ATTENDANCE)
+        message = self._message_for_staff(message_id)
+        if message.kind is not MessageKind.LEAVE:
+            raise ValidationError(f"Tin {message.id} không phải đơn xin nghỉ.")
+        if not message.needs_action:
+            raise KindergartenError(f"Đơn {message.id} đã được xử lý.")
+        return self.complete(message.id, note) if approve else self.decline(message.id, note)
 
     def inbox(self, class_ids: set[str] | None = None, only_open: bool = False,
               on_date: date | None = None) -> list[Message]:

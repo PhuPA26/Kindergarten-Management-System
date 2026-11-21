@@ -1,6 +1,7 @@
 """Vận hành hằng ngày: nhật ký ăn - ngủ - sinh hoạt của trẻ (DailyLog) và trao đổi giáo viên - phụ huynh (Message)."""
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import date, datetime
 from enum import Enum
 from typing import Any
@@ -294,3 +295,53 @@ class Message(BaseModel):
                    data.get("status", MessageStatus.NEW.value), data.get("reply", ""), data.get("replied_by", ""),
                    data.get("replied_at", ""), data.get("created_at", ""), data.get("done_at", ""),
                    data.get("leave_request_id", ""), id=data["id"])
+
+
+class LeaveStatus(Enum):
+    """Trạng thái một đơn xin nghỉ nhìn từ phía phụ huynh / giáo viên."""
+    PENDING = "Chờ cô duyệt"
+    APPROVED = "Đã duyệt"
+    DECLINED = "Từ chối"
+    CANCELLED = "Đã hủy"
+
+
+@dataclass(frozen=True)
+class LeaveApplication:
+    """Một đơn xin nghỉ (chỉ để hiển thị) - gộp hai nguồn:
+    - phụ huynh tự tạo trên ứng dụng (Message loại 'Xin nghỉ'): chờ cô duyệt -> duyệt thành đơn nghỉ có phép, hoặc
+      bị từ chối kèm lý do;
+    - giáo viên ghi giúp khi phụ huynh báo qua điện thoại (LeaveRequest không gắn tin nhắn nào): có hiệu lực ngay."""
+
+    SOURCE_PARENT = "Phụ huynh gửi"
+    SOURCE_TEACHER = "Cô ghi giúp (PH báo qua điện thoại)"
+
+    id: str                       # mã tin nhắn (TN...) nếu phụ huynh gửi, mã đơn (DN...) nếu cô ghi giúp
+    child_id: str
+    class_id: str | None
+    from_date: date
+    to_date: date
+    reason: str
+    created_by: str
+    source: str
+    status: LeaveStatus
+    teacher_note: str
+    created_at: str
+    school_days: int
+    leave_request_id: str = ""    # đơn nghỉ có phép đã tạo (khi đã duyệt)
+
+    @property
+    def period_text(self) -> str:
+        if self.from_date == self.to_date:
+            return format_date(self.from_date)
+        return f"{format_date(self.from_date)} - {format_date(self.to_date)}"
+
+    @property
+    def created_text(self) -> str:
+        """'2026-11-21T14:05' -> '21/11 14:05'."""
+        stamp = self.created_at
+        return f"{stamp[8:10]}/{stamp[5:7]} {stamp[11:16]}" if len(stamp) >= 16 else stamp
+
+    @property
+    def can_withdraw(self) -> bool:
+        """Phụ huynh chỉ rút được đơn mình gửi mà cô chưa xử lý."""
+        return self.source == self.SOURCE_PARENT and self.status is LeaveStatus.PENDING

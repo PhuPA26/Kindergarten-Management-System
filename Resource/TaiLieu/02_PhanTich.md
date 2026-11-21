@@ -45,19 +45,20 @@ flowchart TD
     F1_3_9 --- F1_3_10["F1.3.10 Hôm nay của con<br/><small>frm017_nv_hom_nay_cua_con</small>"]
     F1_3_10 --- F1_3_11["F1.3.11 Nhật ký ăn ngủ<br/><small>frm018_nv_nhat_ky_cua_con</small>"]
     F1_3_11 --- F1_3_12["F1.3.12 Trao đổi với cô<br/><small>frm019_nv_trao_doi_voi_co</small>"]
-    F1_3_12 --- F1_3_13["F1.3.13 Thực đơn tuần<br/><small>frm020_nv_thuc_don_tuan</small>"]
-    F1_3_13 --- F1_3_14["F1.3.14 Sức khỏe & chuyên cần<br/><small>frm021_nv_suc_khoe_cua_con</small>"]
+    F1_3_12 --- F1_3_13["F1.3.13 Đơn xin nghỉ<br/><small>frm020_nv_don_xin_nghi_cua_con</small>"]
+    F1_3_13 --- F1_3_14["F1.3.14 Thực đơn tuần<br/><small>frm021_nv_thuc_don_tuan</small>"]
+    F1_3_14 --- F1_3_15["F1.3.15 Sức khỏe & chuyên cần<br/><small>frm022_nv_suc_khoe_cua_con</small>"]
     F1 --> F1_4["F1.4<br/>Nghiệp vụ tài chính"]
-    F1_4 --- F1_4_1["F1.4.1 Học phí<br/><small>frm022_nv_hoc_phi</small>"]
-    F1_4_1 --- F1_4_2["F1.4.2 Học phí & dịch vụ<br/><small>frm023_nv_hoc_phi_cua_con</small>"]
+    F1_4 --- F1_4_1["F1.4.1 Học phí<br/><small>frm023_nv_hoc_phi</small>"]
+    F1_4_1 --- F1_4_2["F1.4.2 Học phí & dịch vụ<br/><small>frm024_nv_hoc_phi_cua_con</small>"]
     F1 --> F1_5["F1.5<br/>Báo cáo thống kê"]
-    F1_5 --- F1_5_1["F1.5.1 Tổng quan<br/><small>frm024_bc_tong_quan</small>"]
-    F1_5_1 --- F1_5_2["F1.5.2 Lập & gửi báo cáo<br/><small>frm025_bc_lap_gui_bao_cao</small>"]
-    F1_5_2 --- F1_5_3["F1.5.3 Báo cáo nhận được<br/><small>frm026_bc_bao_cao_nhan_duoc</small>"]
-    F1_5_3 --- F1_5_4["F1.5.4 Lập báo cáo toàn trường<br/><small>frm027_bc_bao_cao_toan_truong</small>"]
+    F1_5 --- F1_5_1["F1.5.1 Tổng quan<br/><small>frm025_bc_tong_quan</small>"]
+    F1_5_1 --- F1_5_2["F1.5.2 Lập & gửi báo cáo<br/><small>frm026_bc_lap_gui_bao_cao</small>"]
+    F1_5_2 --- F1_5_3["F1.5.3 Báo cáo nhận được<br/><small>frm027_bc_bao_cao_nhan_duoc</small>"]
+    F1_5_3 --- F1_5_4["F1.5.4 Lập báo cáo toàn trường<br/><small>frm028_bc_bao_cao_toan_truong</small>"]
 ```
 
-**5 chức năng đỉnh, 29 chức năng lá (form)** - 3 cấp: F1 → F1.x → F1.x.y.
+**5 chức năng đỉnh, 30 chức năng lá (form)** - 3 cấp: F1 → F1.x → F1.x.y.
 
 | Mã chức năng | Chức năng | Form | Vai trò được dùng |
 |---|---|---|---|
@@ -85,16 +86,17 @@ flowchart TD
 | F1.3.10 | Hôm nay của con | `frm017_nv_hom_nay_cua_con` | Phụ huynh |
 | F1.3.11 | Nhật ký ăn ngủ | `frm018_nv_nhat_ky_cua_con` | Phụ huynh |
 | F1.3.12 | Trao đổi với cô | `frm019_nv_trao_doi_voi_co` | Phụ huynh |
-| F1.3.13 | Thực đơn tuần | `frm020_nv_thuc_don_tuan` | Phụ huynh |
-| F1.3.14 | Sức khỏe & chuyên cần | `frm021_nv_suc_khoe_cua_con` | Phụ huynh |
+| F1.3.13 | Đơn xin nghỉ | `frm020_nv_don_xin_nghi_cua_con` | Phụ huynh |
+| F1.3.14 | Thực đơn tuần | `frm021_nv_thuc_don_tuan` | Phụ huynh |
+| F1.3.15 | Sức khỏe & chuyên cần | `frm022_nv_suc_khoe_cua_con` | Phụ huynh |
 | **F1.4** | **Nghiệp vụ tài chính** | | |
-| F1.4.1 | Học phí | `frm022_nv_hoc_phi` | Ban giám hiệu (Quản trị), Kế toán |
-| F1.4.2 | Học phí & dịch vụ | `frm023_nv_hoc_phi_cua_con` | Phụ huynh |
+| F1.4.1 | Học phí | `frm023_nv_hoc_phi` | Ban giám hiệu (Quản trị), Kế toán |
+| F1.4.2 | Học phí & dịch vụ | `frm024_nv_hoc_phi_cua_con` | Phụ huynh |
 | **F1.5** | **Báo cáo thống kê** | | |
-| F1.5.1 | Tổng quan | `frm024_bc_tong_quan` | Ban giám hiệu (Quản trị) |
-| F1.5.2 | Lập & gửi báo cáo | `frm025_bc_lap_gui_bao_cao` | Giáo viên, Kế toán, NV bếp - cấp dưỡng, NV bảo vệ - đón trả trẻ ở cổng, NV y tế - sức khỏe trẻ, NV nhân viên |
-| F1.5.3 | Báo cáo nhận được | `frm026_bc_bao_cao_nhan_duoc` | Ban giám hiệu (Quản trị) |
-| F1.5.4 | Lập báo cáo toàn trường | `frm027_bc_bao_cao_toan_truong` | Ban giám hiệu (Quản trị) |
+| F1.5.1 | Tổng quan | `frm025_bc_tong_quan` | Ban giám hiệu (Quản trị) |
+| F1.5.2 | Lập & gửi báo cáo | `frm026_bc_lap_gui_bao_cao` | Giáo viên, Kế toán, NV bếp - cấp dưỡng, NV bảo vệ - đón trả trẻ ở cổng, NV y tế - sức khỏe trẻ, NV nhân viên |
+| F1.5.3 | Báo cáo nhận được | `frm027_bc_bao_cao_nhan_duoc` | Ban giám hiệu (Quản trị) |
+| F1.5.4 | Lập báo cáo toàn trường | `frm028_bc_bao_cao_toan_truong` | Ban giám hiệu (Quản trị) |
 <!-- BFD:END -->
 
 ## 2. Sơ đồ luồng dữ liệu

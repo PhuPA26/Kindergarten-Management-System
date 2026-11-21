@@ -99,7 +99,7 @@ children. Any new operation that crosses modules needs the same permission and s
 - Run business calls through `BaseTab.guard()`. It shows a `KindergartenError` in a message box, and on success it
   saves, refreshes and notifies. Use `BaseTab.form()` for detail dialogs and `BaseTab.confirm_delete()` for deletes.
 - Widget attributes use the course naming convention: `m_txt_`, `m_cbo_`, `m_fg_` (grid), `m_lbl_`, `m_btn_`,
-  `m_tab_`. Forms are numbered `frm000`–`frm027` (list in `Resource/TaiLieu/04_CaiDat.md`). The business layer stays
+  `m_tab_`. Forms are numbered `frm000`–`frm028` (list in `Resource/TaiLieu/04_CaiDat.md`). The business layer stays
   plain PEP 8 `snake_case`.
 
 **Console (`ui/console`).** `MainMenu` dispatches to one `screens/*_screen.py` per business area. Tests drive it end

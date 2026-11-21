@@ -25,7 +25,8 @@ class ParentScreen(Screen):
                 .add("Nhật ký ăn ngủ các ngày (xem, phản hồi cô)", self.diary)
                 .add("Gửi lời nhắn cho cô", lambda: self.send(MessageKind.NOTE))
                 .add("Dặn cô cho con uống thuốc", lambda: self.send(MessageKind.MEDICINE))
-                .add("Xin cho con nghỉ học", lambda: self.send(MessageKind.LEAVE))
+                .add("Tạo đơn xin nghỉ cho con (gửi cô duyệt)", lambda: self.send(MessageKind.LEAVE))
+                .add("Đơn xin nghỉ của con (xem kết quả duyệt, rút đơn)", self.leaves)
                 .add("Tin nhắn và thông báo của cô", self.messages)
                 .add("Thực đơn tuần này", self.menu_week)
                 .add("Học phí của con", self.fees)
@@ -98,7 +99,25 @@ class ParentScreen(Screen):
         else:
             values["content"] = io.ask_text("Nội dung lời nhắn")
         self.system.daily.parent_send(child.id, kind, **values)
-        io.success(f"Đã gửi {kind.value.lower()} cho cô giáo lớp {self.class_name(child.class_id)}.")
+        if kind is MessageKind.LEAVE:
+            io.success(f"Đã gửi đơn xin nghỉ cho cô giáo lớp {self.class_name(child.class_id)} - đơn đang chờ cô "
+                       "duyệt (xem ở mục 'Đơn xin nghỉ của con').")
+        else:
+            io.success(f"Đã gửi {kind.value.lower()} cho cô giáo lớp {self.class_name(child.class_id)}.")
+
+    def leaves(self) -> None:
+        io, child = self.io, self._child()
+        items = self.system.daily.leave_applications(child.id)
+        io.table(["Mã", "Gửi lúc", "Nghỉ ngày", "Ngày học", "Lý do", "Người tạo đơn", "Trạng thái", "Cô phản hồi"],
+                 [[a.id, a.created_text, a.period_text, a.school_days, a.reason, a.created_by, a.status.value,
+                   a.teacher_note or "-"] for a in items],
+                 title=f"ĐƠN XIN NGHỈ - {child.full_name.upper()}", max_width=40)
+        pending = [a for a in items if a.can_withdraw]
+        if pending and io.ask_yes_no("Rút một đơn đang chờ cô duyệt", default=False):
+            chosen = self._require(io.choose(pending, lambda a: f"{a.id}: {a.period_text} - {a.reason}",
+                                             "Chọn đơn cần rút", "Không có đơn chờ duyệt."))
+            self.system.daily.parent_withdraw_leave(chosen.id)
+            io.success(f"Đã rút đơn {chosen.id}.")
 
     def messages(self) -> None:
         child = self._child()
