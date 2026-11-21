@@ -8,17 +8,16 @@ Sau rà soát:
 """
 from __future__ import annotations
 
-from collections import Counter
 from datetime import date, timedelta
 from typing import Any
 
-from ..attendance.attendance_manager import AttendanceManager
 from ..classroom.class_manager import ClassManager
 from ..core.base_manager import BaseManager
 from ..exceptions import DuplicateIdError, KindergartenError
 from ..people.child import Child
 from ..people.managers import ChildManager, ParentManager
 from ..utils import format_vnd, id_sort_key, in_month, month_bounds, month_label, normalize_text, parse_date, parse_month
+from .attendance_reader import AttendanceReader
 from .discount import Discount, DiscountPolicy
 from .fees import ExtraFee, Fee, MealFee, MonthlyFee
 from .invoice import Invoice, InvoiceStatus, Payment
@@ -29,7 +28,7 @@ class InvoiceManager(BaseManager[Invoice]):
     entity_name = "hóa đơn"
 
     def __init__(self, child_manager: ChildManager, parent_manager: ParentManager, class_manager: ClassManager,
-                 attendance_manager: AttendanceManager, settings: FeeSettings | None = None) -> None:
+                 attendance_manager: AttendanceReader, settings: FeeSettings | None = None) -> None:
         super().__init__()
         self.children = child_manager
         self.parents = parent_manager
@@ -155,7 +154,7 @@ class InvoiceManager(BaseManager[Invoice]):
         self._check_period(month, year, date.today())
         month_end = month_bounds(month, year)[1]
         class_key = self._key(class_id) if class_id else None
-        present: Counter = self.attendance.present_days_map(month, year)   # P03: một lượt cho cả trường
+        present = self.attendance.present_days_map(month, year)   # P03: một lượt cho cả trường
         last_classes = {r.child_id: r.class_id for r in self.attendance.records_in_month(month, year) if r.class_id}
         created, skipped = [], []
         month_start = month_bounds(month, year)[0]

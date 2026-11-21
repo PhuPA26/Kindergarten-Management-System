@@ -1,13 +1,16 @@
 """Kiểm thử Fee (T21), Discount (T22), Invoice/Payment (T23), InvoiceManager (T24)."""
 from datetime import date, timedelta
 from types import SimpleNamespace
+from unittest.mock import Mock
 
 import pytest
 
 from kindergarten.exceptions import DuplicateIdError, KindergartenError, PaymentError
+from kindergarten.finance.attendance_reader import AttendanceReader
 from kindergarten.finance.discount import Discount, DiscountPolicy
 from kindergarten.finance.fees import ExtraFee, Fee, MealFee, MonthlyFee
 from kindergarten.finance.invoice import Invoice, InvoiceStatus
+from kindergarten.finance.invoice_manager import InvoiceManager
 from kindergarten.finance.settings import FeeSettings
 from kindergarten.utils import previous_month, school_days
 
@@ -86,6 +89,46 @@ def test_generate_monthly_invoices(system, school):
     assert again == [] and len(skipped) == 3
     with pytest.raises(DuplicateIdError):
         system.invoices.create_invoice(school.older.id, school.month, school.year)
+
+
+def test_billing_uses_attendance_class_after_withdrawal(system, school):
+    child = school.older
+    class_id = child.class_id
+    leave_date = school_days(school.month, school.year)[4]
+    system.withdraw_child(child.id, on_date=leave_date)
+
+    created, _ = system.invoices.generate_monthly_invoices(school.month, school.year, class_id=class_id)
+
+    invoice = next(item for item in created if item.child_id == child.id)
+    assert child.class_id is None
+    assert invoice.class_name == "Lá 1"
+    assert invoice.meal_amount == 3 * system.settings.meal_rate_per_day
+
+
+def test_billing_reports_missing_attendance(system, school):
+    day = school_days(school.month, school.year)[4]
+    gaps = system.invoices.attendance_gaps(school.month, school.year)
+    assert (school.older.id, day) in gaps
+    assert (school.older.id, school_days(school.month, school.year)[0]) not in gaps
+
+
+def test_billing_uses_attendance_contract(system, make_child):
+    child = make_child(years=5)
+    classroom = system.classes.create_class("Lá thử", "Lá", 10)
+    system.classes.enroll(child.id, classroom.id)
+    month, year = previous_month(date.today().month, date.today().year)
+    attendance = Mock(spec=AttendanceReader)
+    attendance.records_in_month.return_value = []
+    attendance.present_days_map.return_value = {child.id: 4}
+    settings = FeeSettings(meal_rate_per_day=30_000)
+    billing = InvoiceManager(system.children, system.parents, system.classes, attendance, settings)
+
+    invoices, _ = billing.generate_monthly_invoices(month, year)
+
+    assert invoices[0].meal_amount == 120_000
+    attendance.present_days_map.assert_called_once_with(month, year)
+    attendance.records_in_month.assert_called_once_with(month, year)
+    attendance.present_days.assert_not_called()
 
 
 def test_debt_tracking(system, school):
