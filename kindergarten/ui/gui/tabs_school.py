@@ -211,7 +211,8 @@ class ClassesTab(BaseTab):
                                             ("Phòng", 60), ("GV chủ nhiệm", 160), ("Sĩ số", 60, "center")])
         self.m_fg_classes.pack(fill="both", expand=True)
         self.m_fg_classes.on_select(self.refresh_children)
-        ttk.Label(right, text="Trẻ trong lớp", style="Section.TLabel").pack(anchor="w")
+        self.m_lbl_children = ttk.Label(right, text="Trẻ trong lớp", style="Section.TLabel")
+        self.m_lbl_children.pack(anchor="w")
         self.m_fg_children = DataTable(right, [("Mã", 55), ("Họ tên", 160), ("Giới tính", 65, "center"),
                                              ("Tuổi", 100)])
         self.m_fg_children.pack(fill="both", expand=True)
@@ -241,6 +242,7 @@ class ClassesTab(BaseTab):
     def refresh_children(self) -> None:
         class_id = self.m_fg_classes.selected_id()
         children = self.system.classes.class_list(class_id) if class_id and self.system.classes.exists(class_id) else []
+        self.m_lbl_children.configure(text=f"Trẻ trong lớp ({len(children)})")
         self.m_fg_children.set_rows([[c.id, c.full_name, c.gender, c.age_text] for c in children],
                                   [c.id for c in children])
 

@@ -458,12 +458,38 @@ class ParentsTab(BaseTab):
         entry.pack(side="left", padx=4)
         entry.bind("<KeyRelease>", self._on_key)
         self._pending: str | None = None
+        ttk.Label(bar, text="Quan hệ:").pack(side="left", padx=(12, 0))
+        self.relationship_filter = ttk.Combobox(bar, state="readonly", width=15,
+                                                values=["Tất cả", *Parent.RELATIONSHIPS])
+        self.relationship_filter.current(0)
+        self.relationship_filter.pack(side="left", padx=4)
+        self.relationship_filter.bind("<<ComboboxSelected>>", lambda _e: self.refresh())
+        self.button(bar, "Xóa lọc", self.reset_filters)
         self.m_fg_list = DataTable(self, [("Mã", 60), ("Họ tên", 170), ("Quan hệ", 80), ("SĐT", 100), ("Nghề nghiệp", 130),
                                       ("Email", 170), ("Các con", 260)])
         self.m_fg_list.pack(fill="both", expand=True)
         self.m_fg_list.on_double_click(self.view_children)
+        self.m_fg_list.on_select(self.refresh_children)
+        self.m_lbl_children = ttk.Label(self, text="Trẻ liên kết (0)", style="Section.TLabel")
+        self.m_lbl_children.pack(anchor="w", pady=(6, 0))
+        self.m_fg_children = DataTable(self, [("Mã", 75), ("Họ tên", 180), ("Tuổi", 100), ("Lớp", 140)], height=4)
+        self.m_fg_children.pack(fill="x")
         self.master_bar(self.add_parent, self.edit_parent, self.delete_parent, P.MANAGE_CHILDREN,
                         extras=[("Xem các con", self.view_children)])
+
+    def reset_filters(self) -> None:
+        self.keyword.set("")
+        self.relationship_filter.current(0)
+        self.refresh()
+
+    def refresh_children(self) -> None:
+        parent_id = self.m_fg_list.selected_id()
+        visible_ids = {child.id for child in self.system.children_for(self.user)}
+        children = [child for child in self.system.parents.children_of(parent_id)
+                    if child.id in visible_ids] if parent_id else []
+        self.m_lbl_children.configure(text=f"Trẻ liên kết ({len(children)})")
+        self.m_fg_children.set_rows([[c.id, c.full_name, c.age_text, self.class_name(c.class_id)] for c in children],
+                                    [c.id for c in children])
 
     def _on_key(self, _event: Any) -> None:
         if self._pending:
@@ -474,11 +500,14 @@ class ParentsTab(BaseTab):
         self._pending = None
         key = normalize_text(self.keyword.get())
         digits = "".join(ch for ch in key if ch.isdigit())
-        parents = [p for p in self.visible_parents()   # L09: giáo viên chỉ thấy phụ huynh lớp mình
-                   if not key or key in p.search_text or (digits and digits in p.phone)]
+        relationship = self.relationship_filter.get()
+        parents = [p for p in self.visible_parents()
+                   if (relationship == "Tất cả" or p.relationship == relationship)
+                   and (not key or key in p.search_text or (digits and digits in p.phone))]
         rows = [[p.id, p.full_name, p.relationship, p.phone, p.occupation or "-", p.email or "-",
                  ", ".join(c.full_name for c in self.system.parents.children_of(p.id)) or "-"] for p in parents]
         self.m_fg_list.set_rows(rows, [p.id for p in parents])
+        self.refresh_children()
 
     def _fields(self, parent: Parent | None = None) -> list[Field]:
         fields = [
