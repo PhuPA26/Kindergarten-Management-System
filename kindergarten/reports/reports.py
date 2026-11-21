@@ -1,5 +1,5 @@
 """T27 - Report (trừu tượng) và EnrollmentReport, AttendanceReport, RevenueReport, DebtReport ghi đè generate().
-T28 - export() ra file .txt hoặc .csv.
+T28 - export() ra TXT, CSV, XLSX hoặc PDF.
 """
 from __future__ import annotations
 
@@ -14,6 +14,7 @@ from ..auth.user import Permission
 from ..exceptions import DataStoreError, ValidationError
 from ..utils import (format_date, format_key_values, format_percent, format_table, format_vnd, month_label,
                      normalize_text, parse_month, weekday_name)
+from .exporters import FILE_EXPORTERS
 
 if TYPE_CHECKING:  # tránh import vòng
     from ..system import KindergartenSystem
@@ -91,7 +92,7 @@ class Report(ABC):
     # ------------------------------------------------------------------ T28 - xuất file
     def export(self, path: str | Path | None = None, fmt: str | None = None,
                directory: str | Path = "exports") -> Path:
-        """Xuất báo cáo ra .txt hoặc .csv (CSV mã hóa UTF-8 có BOM để Excel đọc đúng tiếng Việt)."""
+        """Xuất bản dữ liệu mới nhất qua định dạng được chọn."""
         if path is not None:
             target = Path(path)
             fmt = (fmt or target.suffix.lstrip(".") or "txt").lower()
@@ -100,15 +101,19 @@ class Report(ABC):
         else:
             fmt = (fmt or "txt").lower()
             target = Path(directory) / f"{self.file_prefix}_{datetime.now():%Y%m%d_%H%M%S}.{fmt}"
-        if fmt not in ("txt", "csv"):
-            raise ValidationError("Chỉ hỗ trợ xuất báo cáo ra file .txt hoặc .csv.")
+        if fmt not in ("txt", "csv") and fmt not in FILE_EXPORTERS:
+            raise ValidationError("Định dạng xuất báo cáo không được hỗ trợ.")
         self.refresh()   # U16: luôn xuất số liệu mới nhất, không dùng bản tạo từ trước
         try:
             target.parent.mkdir(parents=True, exist_ok=True)
             if fmt == "txt":
                 target.write_text(self.to_text() + "\n", encoding="utf-8")
-            else:
+            elif fmt == "csv":
                 self._export_csv(target)
+            else:
+                FILE_EXPORTERS[fmt].write(self.data, target)
+        except ImportError as exc:
+            raise DataStoreError("Thiếu thư viện xuất báo cáo. Hãy cài các gói trong requirements.txt.") from exc
         except OSError as exc:   # L21: lỗi ghi file (đang mở trong Excel, ổ đầy...) thành thông báo dễ hiểu
             raise DataStoreError(f"Không ghi được file báo cáo '{target}': {exc.strerror or exc}") from exc
         return target

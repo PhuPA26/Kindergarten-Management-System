@@ -581,6 +581,8 @@ class TextDialog(tk.Toplevel):
         ttk.Button(buttons, text="Đóng", command=self.destroy).pack(side="right")
         if report is not None:
             ttk.Button(buttons, text="Xuất CSV (Excel)", command=lambda: self._export("csv")).pack(side="right", padx=4)
+            ttk.Button(buttons, text="Xuất Excel", command=lambda: self._export("xlsx")).pack(side="right", padx=4)
+            ttk.Button(buttons, text="Xuất PDF", command=lambda: self._export("pdf")).pack(side="right", padx=4)
             ttk.Button(buttons, text="Xuất TXT", command=lambda: self._export("txt")).pack(side="right", padx=4)
         self.bind("<Escape>", lambda _e: self.destroy())
 
