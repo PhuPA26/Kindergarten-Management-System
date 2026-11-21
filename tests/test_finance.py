@@ -106,5 +106,7 @@ def test_debt_tracking(system, school):
     assert summary["collected"] == poor_invoice.total + 500_000
     with pytest.raises(KindergartenError):
         system.children.remove(school.older.id)  # còn nợ học phí
+    with pytest.raises(KindergartenError, match="lịch sử học phí"):
+        system.children.remove(school.poor.id)  # đã trả đủ
     with pytest.raises(KindergartenError):
         system.invoices.remove(older_invoice.id)  # hóa đơn đã có thanh toán

@@ -37,7 +37,7 @@ class InvoiceManager(BaseManager[Invoice]):
         self.attendance = attendance_manager
         self.settings = settings or FeeSettings()
         self._by_period: dict[tuple[str, int, int], Invoice] = {}
-        child_manager.on_before_remove(self._check_child_debt)
+        child_manager.on_before_remove(self._check_child_financial_history)
 
     @property
     def policy(self) -> DiscountPolicy:
@@ -59,14 +59,13 @@ class InvoiceManager(BaseManager[Invoice]):
         self._by_period.clear()
 
     def _before_remove(self, invoice: Invoice) -> None:
-        if invoice.valid_payments:
-            raise KindergartenError(f"Hóa đơn {invoice.id} đã có thanh toán, không thể xóa "
-                                    "(hãy hủy phiếu thu trước nếu ghi nhầm).")
+        if invoice.payments:
+            raise KindergartenError(f"Hóa đơn {invoice.id} đã có lịch sử phiếu thu, không thể xóa.")
 
-    def _check_child_debt(self, child: Child) -> None:
-        debt = self.debt_of_child(child.id)
-        if debt > 0:
-            raise KindergartenError(f"{child.full_name} còn nợ học phí {format_vnd(debt)}, chưa thể xóa hồ sơ.")
+    def _check_child_financial_history(self, child: Child) -> None:
+        if self.invoices_of_child(child.id):
+            raise KindergartenError(f"{child.full_name} đã có lịch sử học phí. "
+                                    "Hãy dùng chức năng Thôi học để giữ hồ sơ.")
 
     # ------------------------------------------------------------------ lập hóa đơn
     def find_invoice(self, child_id: str, month: int, year: int) -> Invoice | None:
