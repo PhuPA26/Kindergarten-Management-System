@@ -96,9 +96,10 @@ def test_pickup_verification(system, make_child, make_parent):
     assert "Ông nội" in system.verify_pickup(child.id, "hồ văn  lộc", day)   # không phân biệt hoa thường/khoảng trắng
     with pytest.raises(PermissionDeniedError):   # L06: phải đúng họ tên CÓ DẤU (Hồ Văn Lộc != Hồ Văn Lốc)
         system.verify_pickup(child.id, "ho van loc", day)
-    assert "Mẹ" in system.verify_pickup(child.id, "Quách Thị Yến", day)
+    with pytest.raises(KindergartenError, match="đã được giao"):
+        system.verify_pickup(child.id, "Quách Thị Yến", day)
     record = system.attendance.get_record(child.id, day)
-    assert record.picked_up_by.startswith("Quách Thị Yến") and record.picked_up_at
+    assert record.picked_up_by.startswith("Hồ Văn Lộc") and record.picked_up_at
     with pytest.raises(PermissionDeniedError):
         system.verify_pickup(child.id, "Người Lạ Mặt", day)
     actions = [e["action"] for e in system.audit_log.read(20)]

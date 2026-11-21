@@ -616,6 +616,9 @@ class KindergartenSystem:
             self.audit("Từ chối giao trẻ", str(child), {"person": person_name, "reason": "không có trong danh sách"})
             raise PermissionDeniedError(f"'{person_name}' KHÔNG có trong danh sách được phép đón "
                                         f"{child.full_name}. Không giao trẻ, hãy liên hệ phụ huynh!")
+        if record.picked_up:
+            self.audit("Từ chối giao trẻ", str(child), {"person": person_name, "reason": "đã giao trẻ"})
+            raise KindergartenError(f"{child.full_name} đã được giao cho {record.picked_up_by}.")
         record.picked_up_by = f"{match[0]} ({match[1]})"
         record.picked_up_at = datetime.now().isoformat(timespec="minutes")
         record.released_by = self.username
