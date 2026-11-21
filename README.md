@@ -31,7 +31,7 @@ Phần tự động của tài liệu sinh lại bằng `python Resource/TaiLieu
 - Python **3.10 trở lên** (đã chạy thử với Python 3.11 trên Windows 11).
 - CSDL **SQLite** (có sẵn trong Python - không cần cài máy chủ CSDL). Toàn bộ dữ liệu nằm trong file
   `data/ql_mam_non.db`; xem / sửa bảng bằng **DB Browser for SQLite** (<https://sqlitebrowser.org>).
-- `pip install -r requirements.txt` (chỉ có `pytest` để chạy kiểm thử). Môi trường `env/` của dự án đã cài sẵn.
+- `python -m pip install -r requirements.txt` để cài thư viện xuất Excel/PDF và kiểm thử.
 
 ### Lần chạy đầu
 1. Chạy chương trình (`python main.py --gui` hoặc F5 trong Visual Studio).
@@ -42,11 +42,11 @@ Phần tự động của tài liệu sinh lại bằng `python Resource/TaiLieu
 
 ## 2. Cách chạy
 
-Mở Command Prompt / PowerShell tại thư mục dự án:
+Mở Command Prompt hoặc PowerShell tại thư mục bản sao dự án.
 
-```bash
-cd /d D:\HTTTQL_NhaTreMauGiao
-```
+Để dùng cấu hình riêng, sao chép `appsettings.example.json` thành `appsettings.json`.
+Đường dẫn tương đối trong JSON được tính từ thư mục chứa tệp cấu hình. Tham số `--data-dir` và `--db`
+trên dòng lệnh được ưu tiên. Có thể chọn tệp khác bằng `--config`.
 
 | Lệnh | Tác dụng |
 |---|---|
@@ -302,7 +302,8 @@ Phần **tiêm chủng đã được bỏ** theo yêu cầu (file `vaccinations.
   được sao lưu trước; nhật ký thao tác giữ nguyên, không bị quay lui). Chế độ `--json` vẫn sao lưu dạng `.zip`.
 - Mã tự sinh được lưu trong bảng `MN_HT_BO_DEM_MA`, nên xóa hồ sơ mã lớn nhất rồi mở lại chương trình cũng không cấp trùng mã.
 - **Nhật ký thao tác** (bảng `MN_HT_NHAT_KY_THAO_TAC`): ai thu tiền, hủy phiếu, đổi cấu hình, giao trẻ, xóa hồ sơ... xem trong tab Hệ thống.
-- Báo cáo xuất ra `exports/`: file `.txt` dạng bảng hoặc `.csv` mở bằng Excel (số liệu được tính lại ngay khi xuất).
+- Báo cáo xuất ra `exports/` theo dạng TXT, CSV, Excel hoặc PDF. Nếu máy dùng font PDF khác mặc định,
+  đặt biến môi trường `KINDERGARTEN_PDF_FONT` đến tệp TTF hỗ trợ tiếng Việt.
 - Lỗi ngoài dự kiến không làm dừng chương trình; chi tiết ghi ở `logs/error.log` (tự xoay vòng, tối đa 5 file × 1 MB).
 - Giao diện Tkinter: Ctrl+1..9 chuyển tab, Ctrl+S lưu; bảng bấm tiêu đề cột để sắp xếp; điểm danh tự tải khi đổi lớp/ngày,
   nút ◀ ▶ nhảy ngày học, nháy đúp đổi trạng thái; rời màn hình khi còn điểm danh chưa lưu sẽ được hỏi lại; đổi cỡ chữ ở tab Hệ thống.

@@ -139,7 +139,9 @@ class Screen:
 
     def export_report(self, report: Report) -> None:
         fmt = self.io.ask_choice("Xuất báo cáo ra file?", [("no", "Không xuất"), ("txt", "File văn bản .txt"),
-                                                            ("csv", "File .csv (mở bằng Excel)")], default="no")
+                                                            ("csv", "File .csv (mở bằng Excel)"),
+                                                            ("xlsx", "File Excel .xlsx"),
+                                                            ("pdf", "File PDF")], default="no")
         if fmt != "no":
             path = report.export(fmt=fmt, directory=self.app.export_dir)
             self.io.success(f"Đã xuất báo cáo: {path}")

@@ -40,18 +40,18 @@ TAB_ICONS = {
 RESOURCE_DIR = Path(__file__).resolve().parents[3] / "Resource"   # biểu tượng, tài nguyên giao diện
 WEEKDAYS = ["Thứ Hai", "Thứ Ba", "Thứ Tư", "Thứ Năm", "Thứ Sáu", "Thứ Bảy", "Chủ nhật"]
 
-# Sơ đồ phân cấp chức năng (Hướng dẫn XD HTTTQL): 5 chức năng đỉnh - 3 chức năng chung (F1.1 Quản trị hệ thống,
-# F1.2 Quản lý thông tin danh mục, F1.5 Báo cáo thống kê) + 2 chức năng nghiệp vụ riêng (F1.3, F1.4).
+# Sơ đồ phân cấp chức năng của nhóm 2 người: 6 nhánh cấp 2.
 # Mỗi chức năng lá là một form. Mỗi vai trò chỉ thấy form mình có quyền -> mỗi vai trò một hệ thống con.
 NAVIGATION: list[tuple[str, list[type[BaseTab]]]] = [
     ("F1.1 Quản trị hệ thống", [SystemTab]),
     ("F1.2 Quản lý danh mục", [ChildrenTab, ParentsTab, EmployeesTab, ClassesTab, ServicesTab, CalendarTab]),
-    ("F1.3 Nghiệp vụ chăm sóc - giáo dục", [OperationsTab, LessonTab, CheckInOutTab, AttendanceTab, DailyLogTab,
-                                           ParentContactTab, HealthTab, TimetableTab, MenuTab,
+    ("F1.3 Chăm sóc - vận hành", [OperationsTab, CheckInOutTab, AttendanceTab, DailyLogTab,
+                                           ParentContactTab, HealthTab, MenuTab,
                                            ParentTodayTab, ParentDiaryTab, ParentMessagesTab, ParentMenuTab,
                                            ParentHealthTab]),
     ("F1.4 Nghiệp vụ tài chính", [FinanceTab, ParentFeesTab]),
     ("F1.5 Báo cáo thống kê", [DashboardTab, ReportSubmitTab, ReportInboxTab, SchoolReportTab]),
+    ("F1.6 Giáo dục - chuyên môn", [LessonTab, TimetableTab]),
 ]
 TAB_CLASSES: list[type[BaseTab]] = [cls for _group, classes in NAVIGATION for cls in classes]
 
@@ -70,8 +70,8 @@ _FORM_SLUGS = {
     "DashboardTab": "bc_tong_quan", "ReportSubmitTab": "bc_lap_gui_bao_cao", "ReportInboxTab": "bc_bao_cao_nhan_duoc",
     "SchoolReportTab": "bc_bao_cao_toan_truong",
 }
-FORM_CODES: dict[str, str] = {cls.__name__: f"frm{i:03d}_{_FORM_SLUGS[cls.__name__]}"
-                              for i, cls in enumerate(TAB_CLASSES, 1)}
+FORM_CODES: dict[str, str] = {name: f"frm{i:03d}_{slug}"
+                              for i, (name, slug) in enumerate(_FORM_SLUGS.items(), 1)}
 # Menu trái: gom form theo CÔNG VIỆC với tên nhóm ngắn (dễ tìm hơn tên chức năng F1.x dài).
 # Mỗi phân hệ chỉ thấy nhóm / mục mình có quyền; nhóm rỗng tự ẩn.
 SIDEBAR_GROUPS: list[tuple[str, list[str]]] = [

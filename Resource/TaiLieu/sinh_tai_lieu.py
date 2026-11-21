@@ -61,14 +61,12 @@ def bfd() -> str:
     for code, name, leaves in data:
         gid = code.replace(".", "_")
         lines.append(f'    F1 --> {gid}["{code}<br/>{name}"]')
-        previous = gid
-        for leaf, title, form, _roles in leaves:   # xếp dọc các chức năng lá dưới mỗi nhóm cho gọn
+        for leaf, title, form, _roles in leaves:
             lid = leaf.replace(".", "_")
-            lines.append(f'    {previous} --- {lid}["{leaf} {title}<br/><small>{form}</small>"]')
-            previous = lid
+            lines.append(f'    {gid} --> {lid}["{leaf} {title}<br/><small>{form}</small>"]')
     lines.append("```")
     total = sum(len(leaves) for _c, _n, leaves in data)
-    table = ["", f"**{len(data)} chức năng đỉnh, {total} chức năng lá (form)** - 3 cấp: F1 → F1.x → F1.x.y.", "",
+    table = ["", f"**{len(data)} nhánh cấp 2, {total} chức năng lá** - 3 cấp: F1 → F1.x → F1.x.y.", "",
              "| Mã chức năng | Chức năng | Form | Vai trò được dùng |", "|---|---|---|---|"]
     for code, name, leaves in data:
         table.append(f"| **{code}** | **{name}** | | |")

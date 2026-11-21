@@ -53,6 +53,30 @@ def open_again(tmp_path) -> KindergartenSystem:
     return other
 
 
+def test_rollback_when_invoice_detail_write_fails(store, tmp_path):
+    system = seeded(store, tmp_path)
+    invoice = next(item for item in system.invoices if item.balance > 0)
+    child = system.children.get(invoice.child_id)
+    old_note = child.notes
+    old_payments = count(store, "MN_NV_PHIEU_THU")
+    child.notes = "Thay đổi cùng giao dịch"
+    invoice.add_payment(invoice.balance)
+    store.connection().execute(
+        """CREATE TEMP TRIGGER fail_payment BEFORE INSERT ON MN_NV_PHIEU_THU
+           BEGIN SELECT RAISE(ABORT, 'payment write failed'); END"""
+    )
+
+    with pytest.raises(DataStoreError, match="payment write failed"):
+        system.save()
+
+    other = open_again(tmp_path)
+    try:
+        assert other.children.get(child.id).notes == old_note
+        assert count(store, "MN_NV_PHIEU_THU") == old_payments
+    finally:
+        other.store.close()
+
+
 def test_schema_follows_naming_convention(store):
     tables = {name for (name,) in store._query("SELECT name FROM sqlite_master WHERE type = 'table' "
                                                "AND name NOT LIKE 'sqlite_%'")}

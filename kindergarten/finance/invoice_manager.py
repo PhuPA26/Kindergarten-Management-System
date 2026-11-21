@@ -8,17 +8,16 @@ Sau rà soát:
 """
 from __future__ import annotations
 
-from collections import Counter
 from datetime import date, timedelta
 from typing import Any
 
-from ..attendance.attendance_manager import AttendanceManager
 from ..classroom.class_manager import ClassManager
 from ..core.base_manager import BaseManager
 from ..exceptions import DuplicateIdError, KindergartenError
 from ..people.child import Child
 from ..people.managers import ChildManager, ParentManager
 from ..utils import format_vnd, id_sort_key, in_month, month_bounds, month_label, normalize_text, parse_date, parse_month
+from .attendance_reader import AttendanceReader
 from .discount import Discount, DiscountPolicy
 from .fees import ExtraFee, Fee, MealFee, MonthlyFee
 from .invoice import Invoice, InvoiceStatus, Payment
@@ -29,7 +28,7 @@ class InvoiceManager(BaseManager[Invoice]):
     entity_name = "hóa đơn"
 
     def __init__(self, child_manager: ChildManager, parent_manager: ParentManager, class_manager: ClassManager,
-                 attendance_manager: AttendanceManager, settings: FeeSettings | None = None) -> None:
+                 attendance_manager: AttendanceReader, settings: FeeSettings | None = None) -> None:
         super().__init__()
         self.children = child_manager
         self.parents = parent_manager
@@ -37,7 +36,7 @@ class InvoiceManager(BaseManager[Invoice]):
         self.attendance = attendance_manager
         self.settings = settings or FeeSettings()
         self._by_period: dict[tuple[str, int, int], Invoice] = {}
-        child_manager.on_before_remove(self._check_child_debt)
+        child_manager.on_before_remove(self._check_child_financial_history)
 
     @property
     def policy(self) -> DiscountPolicy:
@@ -59,14 +58,13 @@ class InvoiceManager(BaseManager[Invoice]):
         self._by_period.clear()
 
     def _before_remove(self, invoice: Invoice) -> None:
-        if invoice.valid_payments:
-            raise KindergartenError(f"Hóa đơn {invoice.id} đã có thanh toán, không thể xóa "
-                                    "(hãy hủy phiếu thu trước nếu ghi nhầm).")
+        if invoice.payments:
+            raise KindergartenError(f"Hóa đơn {invoice.id} đã có lịch sử phiếu thu, không thể xóa.")
 
-    def _check_child_debt(self, child: Child) -> None:
-        debt = self.debt_of_child(child.id)
-        if debt > 0:
-            raise KindergartenError(f"{child.full_name} còn nợ học phí {format_vnd(debt)}, chưa thể xóa hồ sơ.")
+    def _check_child_financial_history(self, child: Child) -> None:
+        if self.invoices_of_child(child.id):
+            raise KindergartenError(f"{child.full_name} đã có lịch sử học phí. "
+                                    "Hãy dùng chức năng Thôi học để giữ hồ sơ.")
 
     # ------------------------------------------------------------------ lập hóa đơn
     def find_invoice(self, child_id: str, month: int, year: int) -> Invoice | None:
@@ -76,11 +74,23 @@ class InvoiceManager(BaseManager[Invoice]):
         """L17: dịch vụ trẻ đăng ký nhưng không còn trong bảng giá."""
         return [s for s in child.extra_services if self.settings.find_service(s) is None]
 
-    def build_fees(self, child: Child, month: int, year: int, present_days: int | None = None) -> list[Fee]:
+    def billing_class_id(self, child: Child, month: int, year: int) -> str | None:
+        records = self.attendance.records_in_month(month, year, child_id=child.id)
+        return next((r.class_id for r in reversed(records) if r.class_id), child.class_id)
+
+    def attendance_gaps(self, month: int, year: int) -> list[tuple[str, date]]:
+        """Ngày học thiếu dữ liệu, giới hạn ở trẻ đang có lớp và chưa thôi học."""
+        recorded = {(r.child_id, r.date) for r in self.attendance.records_in_month(month, year)}
+        days = self.attendance.calendar.school_days(month, year, until=date.today())
+        return [(child.id, day) for child in self.children.active() if child.class_id
+                for day in days if day >= child.enrollment_date and (child.id, day) not in recorded]
+
+    def build_fees(self, child: Child, month: int, year: int, present_days: int | None = None,
+                   *, class_id: str | None = None) -> list[Fee]:
         """Các khoản phí của trẻ trong tháng (đa hình: mỗi khoản tự tính tiền)."""
         if present_days is None:
             present_days = self.attendance.present_days(child.id, month, year)
-        classroom = self.classes.get_or_none(child.class_id) if child.class_id else None
+        classroom = self.classes.get_or_none(class_id or self.billing_class_id(child, month, year))
         tuition = self.settings.tuition_for(classroom.age_group.label if classroom else None)
         fees: list[Fee] = [MonthlyFee(tuition), MealFee(present_days, self.settings.meal_rate_per_day)]
         for service in child.extra_services:
@@ -107,7 +117,7 @@ class InvoiceManager(BaseManager[Invoice]):
         return (year, month) == (today.year, today.month)
 
     def create_invoice(self, child_id: str, month: int, year: int, issue_date: Any = None,
-                       present_days: int | None = None) -> Invoice:
+                       present_days: int | None = None, *, class_id: str | None = None) -> Invoice:
         child = self.children.get(child_id)
         month, year = parse_month((month, year))
         today = date.today()
@@ -117,10 +127,11 @@ class InvoiceManager(BaseManager[Invoice]):
         if child.enrollment_date > month_bounds(month, year)[1]:
             raise KindergartenError(f"{child.full_name} nhập học sau tháng {month_label(month, year)}.")
         issued = parse_date(issue_date) if issue_date is not None else today
-        fees = self.build_fees(child, month, year, present_days)
+        class_id = class_id or self.billing_class_id(child, month, year)
+        fees = self.build_fees(child, month, year, present_days, class_id=class_id)
         missing = self.unknown_services(child)
         invoice = Invoice(child.id, month, year, fees, self._discount_for(child, month, year, fees),
-                          child_name=child.full_name, class_name=self.classes.class_name(child.class_id),
+                          child_name=child.full_name, class_name=self.classes.class_name(class_id),
                           issue_date=issued, due_date=issued + timedelta(days=self.settings.due_days),
                           note=f"Dịch vụ không còn trong bảng giá (chưa tính): {', '.join(missing)}" if missing else "",
                           provisional=provisional)
@@ -138,20 +149,26 @@ class InvoiceManager(BaseManager[Invoice]):
 
     def generate_monthly_invoices(self, month: int, year: int, class_id: str | None = None,
                                   issue_date: Any = None) -> tuple[list[Invoice], list[Child]]:
-        """Tạo hóa đơn hàng loạt cho mọi trẻ đang học (bỏ qua trẻ đã có hóa đơn tháng đó)."""
+        """Tạo hóa đơn cho trẻ có lớp trong kỳ, kể cả trẻ đã thôi học có điểm danh."""
         month, year = parse_month((month, year))
         self._check_period(month, year, date.today())
         month_end = month_bounds(month, year)[1]
         class_key = self._key(class_id) if class_id else None
-        present: Counter = self.attendance.present_days_map(month, year)   # P03: một lượt cho cả trường
+        present = self.attendance.present_days_map(month, year)   # P03: một lượt cho cả trường
+        last_classes = {r.child_id: r.class_id for r in self.attendance.records_in_month(month, year) if r.class_id}
         created, skipped = [], []
-        for child in self.children.sort("id", items=self.children.active()):
-            if not child.class_id or (class_key and child.class_id != class_key):
+        month_start = month_bounds(month, year)[0]
+        for child in self.children.sort("id"):
+            if not child.is_active and (child.leave_date is None or child.leave_date <= month_start):
+                continue
+            billing_class = last_classes.get(child.id, child.class_id)
+            if not billing_class or (class_key and billing_class != class_key):
                 continue
             if child.enrollment_date > month_end or self.find_invoice(child.id, month, year):
                 skipped.append(child)
                 continue
-            created.append(self.create_invoice(child.id, month, year, issue_date, present.get(child.id, 0)))
+            created.append(self.create_invoice(child.id, month, year, issue_date, present.get(child.id, 0),
+                                               class_id=billing_class))
         return created, skipped
 
     # ------------------------------------------------------------------ thanh toán

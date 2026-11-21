@@ -238,6 +238,8 @@ def test_l16_void_payment_keeps_trace(system, make_child, klass):
     system.void_payment(invoice.id, payment.id, "Ghi nhầm hóa đơn")
     assert invoice.balance == invoice.total and payment.voided and payment.void_reason == "Ghi nhầm hóa đơn"
     assert payment in invoice.payments
+    with pytest.raises(KindergartenError, match="lịch sử phiếu thu"):
+        system.invoices.remove(invoice.id)
 
 
 # ----------------------------------------------------------------------------- L17

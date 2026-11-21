@@ -105,11 +105,12 @@ def test_subject_report_counts_planned_and_logged_lessons(seeded):
     assert all(row[0] == "Phạm Minh Tuấn" for row in report.data["rows"])   # chỉ tiết của mình
 
 
-def test_removing_child_or_teacher_cleans_lesson_logs(seeded):
+def test_removing_child_or_teacher_cleans_lesson_logs(seeded, make_child):
     """Như ON DELETE CASCADE trong CSDL: xóa trẻ -> bỏ nhận xét; xóa GV bộ môn -> bỏ sổ tiết dạy."""
-    # chọn trẻ không còn nợ học phí (trẻ còn nợ thì không xóa được hồ sơ)
-    log, child_id = next((x, cid) for x in seeded.lessons for cid in x.child_notes
-                         if seeded.invoices.debt_of_child(cid) == 0)
+    # Hồ sơ nhập nhầm chưa phát sinh hóa đơn vẫn có thể được xóa.
+    log = next(iter(seeded.lessons))
+    child_id = make_child("Nguyễn Mai Linh").id
+    log.child_notes = {**log.child_notes, child_id: {"level": "", "comment": "Nhận xét thử"}}
     seeded.children.remove(child_id)
     assert child_id not in log.child_notes
     teacher_id = log.teacher_id

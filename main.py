@@ -14,6 +14,7 @@ Cách chạy (trong thư mục dự án):
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 from pathlib import Path
 from typing import Any, Callable
@@ -46,9 +47,31 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--yes", "-y", action="store_true", help="không hỏi xác nhận khi dùng --seed")
     parser.add_argument("--db", default=None, help="đường dẫn file CSDL SQLite (mặc định data/ql_mam_non.db)")
     parser.add_argument("--json", action="store_true", help="dùng file JSON thay cho SQLite (chế độ cũ)")
-    parser.add_argument("--data-dir", default=str(BASE_DIR / "data"),
+    parser.add_argument("--config", type=Path, help="tệp cấu hình JSON (mặc định appsettings.json nếu có)")
+    parser.add_argument("--data-dir",
                         help="thư mục chứa file CSDL, bản sao lưu (và dữ liệu khi chạy --json)")
-    return parser.parse_args(argv)
+    args = parser.parse_args(argv)
+    config_file = args.config or BASE_DIR / "appsettings.json"
+    config = {}
+    if args.config or config_file.is_file():
+        try:
+            config = json.loads(config_file.read_text(encoding="utf-8-sig"))
+            if not isinstance(config, dict):
+                raise ValueError("cần một đối tượng JSON")
+            for name in ("data_dir", "db"):
+                if name in config and config[name] is not None and (
+                    not isinstance(config[name], str) or not config[name].strip()
+                ):
+                    raise ValueError(f"{name} phải là một đường dẫn hoặc null")
+        except (OSError, ValueError) as exc:
+            parser.error(f"Cấu hình {config_file}: {exc}")
+
+    for name in ("data_dir", "db"):
+        value = config.get(name)
+        if getattr(args, name) is None and value is not None:
+            setattr(args, name, str(config_file.parent / value))
+    args.data_dir = args.data_dir or str(BASE_DIR / "data")
+    return args
 
 
 def open_store(args: argparse.Namespace) -> Any:

@@ -1,3 +1,5 @@
-# CSDL SQLite dùng module sqlite3 có sẵn trong Python - không cần cài thêm thư viện nào để chạy chương trình.
-# Chỉ cần để chạy bộ kiểm thử (T33):
+# Xuất báo cáo Excel/PDF:
+openpyxl>=3.1
+reportlab>=4.2
+# Kiểm thử:
 pytest>=7.0

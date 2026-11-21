@@ -34,9 +34,34 @@ def test_export_txt_and_csv(seeded, tmp_path):
     rows = list(csv.reader(io.StringIO(raw.decode("utf-8-sig"))))
     assert "Tên lớp" in rows[4]
     with pytest.raises(ValidationError):
-        report.export(tmp_path / "bao_cao.pdf")
+        report.export(tmp_path / "bao_cao.html")
     default_path = report.export(directory=tmp_path / "exports")
     assert default_path.suffix == ".txt" and default_path.parent.name == "exports"
+
+
+def test_export_xlsx_preserves_numbers_and_vietnamese(seeded, tmp_path):
+    openpyxl = pytest.importorskip("openpyxl")
+    report = EnrollmentReport(seeded)
+    target = report.export(tmp_path / "si_so.xlsx")
+
+    book = openpyxl.load_workbook(target, read_only=True)
+    try:
+        values = list(book.active.values)
+        assert values[0][0] == "Báo cáo sĩ số"
+        assert values[3][1] == "Tên lớp"
+        assert isinstance(values[4][5], int)
+        assert any(row[0] == "Tổng số trẻ có hồ sơ" and row[1] == "20" for row in values)
+    finally:
+        book.close()
+
+
+def test_export_pdf_embeds_unicode_font(seeded, tmp_path):
+    pytest.importorskip("reportlab")
+    target = EnrollmentReport(seeded).export(tmp_path / "si_so.pdf")
+
+    contents = target.read_bytes()
+    assert contents.startswith(b"%PDF")
+    assert b"/FontFile2" in contents and b"/ToUnicode" in contents
 
 
 def test_dashboard(seeded):

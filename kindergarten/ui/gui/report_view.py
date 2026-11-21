@@ -393,6 +393,8 @@ class ReportDrawer(tk.Frame):
             tk.Label(tools, text="Nhấn ✕ hoặc Esc để đóng", font=ui_font(-1), fg=c["muted"], bg=c["card"]).pack(
                 side="right")
             ttk.Button(tools, text="Xuất TXT", command=lambda: self._export("txt")).pack(side="left")
+            ttk.Button(tools, text="Xuất Excel", command=lambda: self._export("xlsx")).pack(side="left", padx=4)
+            ttk.Button(tools, text="Xuất PDF", command=lambda: self._export("pdf")).pack(side="left", padx=4)
             ttk.Button(tools, text="Xuất Excel (CSV)", command=lambda: self._export("csv")).pack(
                 side="left", padx=(px(6), 0))
         tk.Frame(self, bg=c["border"], height=1).pack(fill="x")

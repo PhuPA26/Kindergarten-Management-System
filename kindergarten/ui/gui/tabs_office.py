@@ -46,13 +46,19 @@ class FinanceTab(BaseTab):
         self.m_cbo_status.pack(side="left", padx=(4, 12))
         self.m_cbo_status.bind("<<ComboboxSelected>>", lambda _e: self.refresh())
         self.button(bar, "Xem", self.refresh)
+        self.button(bar, "Xóa lọc trạng thái", self.reset_status)
         self.m_fg_list = DataTable(self, [("Mã HĐ", 65), ("Trẻ", 170), ("Lớp", 120), ("Kỳ", 70, "center"),
                                       ("Phải nộp", 100, "e"), ("Đã nộp", 100, "e"), ("Còn nợ", 100, "e"),
                                       ("Trạng thái", 200, "center"), ("Hạn nộp", 85, "center")])
         self.m_fg_list.pack(fill="both", expand=True)
         self.m_fg_list.on_double_click(self.detail)
+        self.m_fg_list.on_select(self.refresh_invoice_detail)
         self.m_lbl_summary = ttk.Label(self, style="Muted.TLabel")
         self.m_lbl_summary.pack(anchor="w", pady=(4, 0))
+        self.m_lbl_invoice = ttk.Label(self, text="Khoản phí và phiếu thu", style="Section.TLabel")
+        self.m_lbl_invoice.pack(anchor="w", pady=(6, 0))
+        self.m_fg_invoice = DataTable(self, [("Loại", 90), ("Diễn giải", 380), ("Số tiền", 120, "e")], height=4)
+        self.m_fg_invoice.pack(fill="x")
         actions = self.bar(pady=(6, 0))
         self.button(actions, "Thu tiền", self.pay, style="Accent.TButton")
         self.button(actions, "Chi tiết", self.detail)
@@ -73,6 +79,21 @@ class FinanceTab(BaseTab):
             messagebox.showerror("Tháng không hợp lệ", exc.message, parent=self)
             return None
 
+    def reset_status(self) -> None:
+        self.m_cbo_status.current(0)
+        self.refresh()
+
+    def refresh_invoice_detail(self) -> None:
+        invoice = self.system.invoices.get_or_none(self.m_fg_list.selected_id())
+        rows = []
+        title = "Khoản phí và phiếu thu"
+        if invoice is not None:
+            rows = [["Khoản phí", fee.describe(), format_vnd(fee.calculate())] for fee in invoice.fees]
+            rows.extend(["Phiếu thu", f"{p.id} · {p.status_text}", format_vnd(p.amount)] for p in invoice.payments)
+            title += f" · {invoice.id} · Còn nợ {format_vnd(invoice.balance)}"
+        self.m_lbl_invoice.configure(text=title)
+        self.m_fg_invoice.set_rows(rows)
+
     def refresh(self) -> None:
         period = self._month()
         if period is None:
@@ -90,6 +111,7 @@ class FinanceTab(BaseTab):
             tags.append("warn" if i.is_overdue() else "ok" if i.status is InvoiceStatus.PAID
                         else "muted" if i.provisional else None)
         self.m_fg_list.set_rows(rows, [i.id for i in invoices], tags)
+        self.refresh_invoice_detail()
         provisional = sum(1 for i in invoices if i.provisional)
         self.m_lbl_summary.configure(text=f"{len(invoices)} hóa đơn | Phải nộp {format_vnd(sum(i.total for i in invoices))}"
                                     f" | Đã nộp {format_vnd(sum(i.paid_amount for i in invoices))}"
@@ -109,8 +131,10 @@ class FinanceTab(BaseTab):
         period = self._month()
         if period is None:
             return
-        if not self.confirm(f"Tạo hóa đơn tháng {month_label(*period)} cho tất cả trẻ đang học?"
-                            f"{self._unfinished_note(period)}"):
+        gaps = self.system.invoices.attendance_gaps(*period)
+        gap_note = f"\n\nCòn {len(gaps)} lượt trẻ/ngày chưa có điểm danh ở các lớp hiện tại." if gaps else ""
+        if not self.confirm(f"Tạo hóa đơn tháng {month_label(*period)} cho các trẻ có lớp trong kỳ?"
+                            f"{self._unfinished_note(period)}{gap_note}"):
             return
         result = self.guard(self.system.invoices.generate_monthly_invoices, *period)
         if result is not None:

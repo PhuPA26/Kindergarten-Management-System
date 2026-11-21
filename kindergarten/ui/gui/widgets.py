@@ -198,10 +198,10 @@ class DataTable(ttk.Frame):
             self._paint(iid)
         self._notify()
 
-    def checked_ids(self) -> list[str]:
+    def checked_ids(self, *, fallback_to_selection: bool = True) -> list[str]:
         """Các dòng đang được tích (theo thứ tự hiển thị); chưa tích dòng nào thì lấy các dòng đang chọn."""
         ticked = [i for i in self.tree.get_children() if i in self._checked]
-        return ticked or list(self.tree.selection())
+        return ticked or (list(self.tree.selection()) if fallback_to_selection else [])
 
     def on_check(self, callback: Callable[[], Any]) -> None:
         self._check_listeners.append(callback)
@@ -582,6 +582,8 @@ class TextDialog(tk.Toplevel):
         ttk.Button(buttons, text="Đóng", command=self.destroy).pack(side="right")
         if report is not None:
             ttk.Button(buttons, text="Xuất CSV (Excel)", command=lambda: self._export("csv")).pack(side="right", padx=4)
+            ttk.Button(buttons, text="Xuất Excel", command=lambda: self._export("xlsx")).pack(side="right", padx=4)
+            ttk.Button(buttons, text="Xuất PDF", command=lambda: self._export("pdf")).pack(side="right", padx=4)
             ttk.Button(buttons, text="Xuất TXT", command=lambda: self._export("txt")).pack(side="right", padx=4)
         self.bind("<Escape>", lambda _e: self.destroy())
 

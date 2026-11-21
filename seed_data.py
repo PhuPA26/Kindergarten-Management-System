@@ -411,6 +411,9 @@ def seed(system: KindergartenSystem, verbose: bool = False) -> dict[str, int]:
                                 collected_by="ketoan")
         elif index % 5 == 3:
             invoice.add_payment(round(invoice.total * 0.5, -3), pay_day, "Chuyển khoản", collected_by="ketoan")
+        elif index == 4:
+            payment = invoice.add_payment(invoice.total, pay_day, "Tiền mặt", collected_by="ketoan")
+            invoice.void_payment(payment.id, "Ghi nhầm phiếu thu mẫu", by="ketoan")
 
     # ---------------- Sổ tiết dạy bộ môn (GV Âm nhạc, Tiếng Anh): 3 tuần gần nhất, chừa vài tiết chưa ghi
     from kindergarten.teaching.lesson_log import LessonLog

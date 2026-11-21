@@ -8,3 +8,4 @@ exports/
 logs/
 env/
 .vs/
+appsettings.json
