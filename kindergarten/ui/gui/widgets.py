@@ -223,7 +223,8 @@ class DataTable(ttk.Frame):
             title, width = spec[0], px(spec[1])
             anchor = spec[2] if len(spec) > 2 else "w"
             command = (lambda: None) if (self.checkable and cid == "c0") else (lambda c=cid: self.sort_by(c))
-            self.tree.heading(cid, text=title, anchor="center", command=command)
+            # tiêu đề căn cùng phía với dữ liệu: cột giãn rộng thì tiêu đề vẫn nằm thẳng trên dữ liệu, không lệch
+            self.tree.heading(cid, text=title, anchor=anchor, command=command)
             self.tree.column(cid, width=width, minwidth=40, anchor=anchor, stretch=True)
 
     @staticmethod

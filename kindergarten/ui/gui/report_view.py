@@ -51,6 +51,22 @@ def _mostly_upper(text: str) -> bool:
     return len(letters) >= 3 and sum(c.isupper() for c in letters) >= 0.8 * len(letters)
 
 
+_MONEY = re.compile(r"^-?[\d.,]+\s*đ$")                                         # 3.200.000 đ
+# giá trị ngắn, độ dài gần như cố định: số đo, %, ngày, kỳ, giờ, mã -> căn giữa cho bảng cân đối
+_SHORT = re.compile(r"^(-?[\d.,]+\s*(%|cm|kg|kcal|tuổi|tháng|năm)?|\d{1,2}/\d{1,2}(/\d{4})?|\d{1,2}:\d{2}"
+                    r"|[A-Z]{1,3}\d{2,5}|-|—)$")
+
+
+def _column_anchor(values: list[str], fmt: str | None) -> str:
+    """Căn lề cột theo nội dung: tiền bên phải, số / ngày / mã ngắn ở giữa, chữ bên trái."""
+    filled = [v.strip() for v in values if v.strip()]
+    if fmt in ("money", "percent") or (filled and all(_MONEY.match(v) for v in filled)):
+        return "e"
+    if filled and all(_SHORT.match(v) for v in filled):
+        return "center"
+    return "w"
+
+
 def _cap_first(text: str) -> str:
     """Viết hoa chữ cái đầu tiên (bỏ qua ký hiệu đứng trước như ④)."""
     for i, ch in enumerate(text):
@@ -161,7 +177,7 @@ class ReportView(tk.Frame):
         columns = []
         for i, header in enumerate(headers):
             longest = max([len(header)] + [len(r[i][:60]) for r in cells if i < len(r)])
-            anchor = "e" if data.column_format(i) == "money" else "w"
+            anchor = _column_anchor([r[i] for r in cells if i < len(r)], data.column_format(i))
             columns.append((header, min(max(longest * 8 + 26, 64), 380), anchor))
         visible = min(len(cells), 12)
         row_h = int(ttk.Style().lookup("Treeview", "rowheight") or px(30))

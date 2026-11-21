@@ -255,8 +255,9 @@ class ParentFeesTab(ParentTab):
     def build(self) -> None:
         self.child_bar()
         ttk.Label(self, text="Hóa đơn học phí", style="Section.TLabel").pack(anchor="w")
-        self.m_fg_invoices = DataTable(self, [("Mã HĐ", 70), ("Kỳ", 80), ("Phải nộp", 110, "e"), ("Đã nộp", 110, "e"),
-                                         ("Còn nợ", 110, "e"), ("Trạng thái", 200), ("Hạn nộp", 90)], height=6)
+        self.m_fg_invoices = DataTable(self, [("Mã HĐ", 70, "center"), ("Kỳ", 80, "center"), ("Phải nộp", 110, "e"),
+                                              ("Đã nộp", 110, "e"), ("Còn nợ", 110, "e"),
+                                              ("Trạng thái", 200, "center"), ("Hạn nộp", 90, "center")], height=6)
         self.m_fg_invoices.pack(fill="x")
         self.m_fg_invoices.on_double_click(self.detail)
         bar = self.bar(pady=(6, 10))

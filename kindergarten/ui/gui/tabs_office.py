@@ -48,7 +48,7 @@ class FinanceTab(BaseTab):
         self.button(bar, "Xem", self.refresh)
         self.m_fg_list = DataTable(self, [("Mã HĐ", 65), ("Trẻ", 170), ("Lớp", 120), ("Kỳ", 70, "center"),
                                       ("Phải nộp", 100, "e"), ("Đã nộp", 100, "e"), ("Còn nợ", 100, "e"),
-                                      ("Trạng thái", 200), ("Hạn nộp", 85)])
+                                      ("Trạng thái", 200, "center"), ("Hạn nộp", 85, "center")])
         self.m_fg_list.pack(fill="both", expand=True)
         self.m_fg_list.on_double_click(self.detail)
         self.m_lbl_summary = ttk.Label(self, style="Muted.TLabel")
