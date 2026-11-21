@@ -73,26 +73,26 @@ Nguyên tắc chung của hướng dẫn: **đủ dài - dễ hiểu - tránh nh
 | `frm005_dm_lop_hoc` | Lớp học | F1.2 Quản lý danh mục | dm - danh mục (Master - Detail) |
 | `frm006_dm_dich_vu` | Dịch vụ | F1.2 Quản lý danh mục | dm - danh mục (Master - Detail) |
 | `frm007_dm_lich_nam_hoc` | Lịch năm học | F1.2 Quản lý danh mục | dm - danh mục (Master - Detail) |
-| `frm008_nv_van_hanh_hom_nay` | Vận hành hôm nay | F1.3 Nghiệp vụ chăm sóc - giáo dục | nv - nghiệp vụ |
-| `frm009_nv_so_tiet_day_bo_mon` | Sổ tiết dạy bộ môn | F1.3 Nghiệp vụ chăm sóc - giáo dục | nv - nghiệp vụ |
-| `frm010_nv_don_tra_tre` | Đón - trả trẻ | F1.3 Nghiệp vụ chăm sóc - giáo dục | nv - nghiệp vụ |
-| `frm011_nv_diem_danh` | Điểm danh | F1.3 Nghiệp vụ chăm sóc - giáo dục | nv - nghiệp vụ |
-| `frm012_nv_an_ngu_sinh_hoat` | Ăn ngủ - sinh hoạt | F1.3 Nghiệp vụ chăm sóc - giáo dục | nv - nghiệp vụ |
-| `frm013_nv_trao_doi_phu_huynh` | Trao đổi phụ huynh | F1.3 Nghiệp vụ chăm sóc - giáo dục | nv - nghiệp vụ |
-| `frm014_nv_suc_khoe` | Sức khỏe | F1.3 Nghiệp vụ chăm sóc - giáo dục | nv - nghiệp vụ |
-| `frm015_nv_thoi_khoa_bieu` | Thời khóa biểu | F1.3 Nghiệp vụ chăm sóc - giáo dục | nv - nghiệp vụ |
-| `frm016_nv_thuc_don` | Thực đơn | F1.3 Nghiệp vụ chăm sóc - giáo dục | nv - nghiệp vụ |
-| `frm017_nv_hom_nay_cua_con` | Hôm nay của con | F1.3 Nghiệp vụ chăm sóc - giáo dục | nv - nghiệp vụ |
-| `frm018_nv_nhat_ky_cua_con` | Nhật ký ăn ngủ | F1.3 Nghiệp vụ chăm sóc - giáo dục | nv - nghiệp vụ |
-| `frm019_nv_trao_doi_voi_co` | Trao đổi với cô | F1.3 Nghiệp vụ chăm sóc - giáo dục | nv - nghiệp vụ |
-| `frm020_nv_thuc_don_tuan` | Thực đơn tuần | F1.3 Nghiệp vụ chăm sóc - giáo dục | nv - nghiệp vụ |
-| `frm021_nv_suc_khoe_cua_con` | Sức khỏe & chuyên cần | F1.3 Nghiệp vụ chăm sóc - giáo dục | nv - nghiệp vụ |
+| `frm008_nv_van_hanh_hom_nay` | Vận hành hôm nay | F1.3 Chăm sóc - vận hành | nv - nghiệp vụ |
+| `frm010_nv_don_tra_tre` | Đón - trả trẻ | F1.3 Chăm sóc - vận hành | nv - nghiệp vụ |
+| `frm011_nv_diem_danh` | Điểm danh | F1.3 Chăm sóc - vận hành | nv - nghiệp vụ |
+| `frm012_nv_an_ngu_sinh_hoat` | Ăn ngủ - sinh hoạt | F1.3 Chăm sóc - vận hành | nv - nghiệp vụ |
+| `frm013_nv_trao_doi_phu_huynh` | Trao đổi phụ huynh | F1.3 Chăm sóc - vận hành | nv - nghiệp vụ |
+| `frm014_nv_suc_khoe` | Sức khỏe | F1.3 Chăm sóc - vận hành | nv - nghiệp vụ |
+| `frm016_nv_thuc_don` | Thực đơn | F1.3 Chăm sóc - vận hành | nv - nghiệp vụ |
+| `frm017_nv_hom_nay_cua_con` | Hôm nay của con | F1.3 Chăm sóc - vận hành | nv - nghiệp vụ |
+| `frm018_nv_nhat_ky_cua_con` | Nhật ký ăn ngủ | F1.3 Chăm sóc - vận hành | nv - nghiệp vụ |
+| `frm019_nv_trao_doi_voi_co` | Trao đổi với cô | F1.3 Chăm sóc - vận hành | nv - nghiệp vụ |
+| `frm020_nv_thuc_don_tuan` | Thực đơn tuần | F1.3 Chăm sóc - vận hành | nv - nghiệp vụ |
+| `frm021_nv_suc_khoe_cua_con` | Sức khỏe & chuyên cần | F1.3 Chăm sóc - vận hành | nv - nghiệp vụ |
 | `frm022_nv_hoc_phi` | Học phí | F1.4 Nghiệp vụ tài chính | nv - nghiệp vụ |
 | `frm023_nv_hoc_phi_cua_con` | Học phí & dịch vụ | F1.4 Nghiệp vụ tài chính | nv - nghiệp vụ |
 | `frm024_bc_tong_quan` | Tổng quan | F1.5 Báo cáo thống kê | bc - báo cáo |
 | `frm025_bc_lap_gui_bao_cao` | Lập & gửi báo cáo | F1.5 Báo cáo thống kê | bc - báo cáo |
 | `frm026_bc_bao_cao_nhan_duoc` | Báo cáo nhận được | F1.5 Báo cáo thống kê | bc - báo cáo |
 | `frm027_bc_bao_cao_toan_truong` | Lập báo cáo toàn trường | F1.5 Báo cáo thống kê | bc - báo cáo |
+| `frm009_nv_so_tiet_day_bo_mon` | Sổ tiết dạy bộ môn | F1.6 Giáo dục - chuyên môn | nv - nghiệp vụ |
+| `frm015_nv_thoi_khoa_bieu` | Thời khóa biểu | F1.6 Giáo dục - chuyên môn | nv - nghiệp vụ |
 <!-- FORMS:END -->
 
 ## 4. Coding Convention
